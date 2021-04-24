@@ -6,10 +6,25 @@ import torchvision.utils as vutils
 import os
 import math
 import pandas as pd
+from typing import Dict
 plt.style.use('ggplot')
 
-def visImg(img_array, temp_dir='/home/yyhhli/code/image data/temp_img.png'):
-    plt.imsave(temp_dir, img_array.astype(np.float))
+
+def flatten_list(_2d_list):
+    flat_list = []
+    # Iterate through the outer list
+    for element in _2d_list:
+        if type(element) is list:
+            # If the element is of type list, iterate through the sublist
+            for item in element:
+                flat_list.append(item)
+        else:
+            flat_list.append(element)
+    return flat_list
+
+
+def visImg(img_array, rng = (0, 1), temp_dir='/home/yyhhli/code/image data/temp_img.png'):
+    plt.imsave(temp_dir, img_array.astype(np.float), vmin = rng[0], vmax = rng[1])
     # print("Image visualized at", temp_dir)
     pass
 
@@ -45,30 +60,26 @@ def visSitk(img, axis=2, slice_num=None, temp_dir='/home/yyhhli/code/image data/
     axis2axis = {0:1, 1:2, 2:0}
     np_img = sitk.GetArrayFromImage(img)
     new_axis = axis2axis[axis]
-    visTemp3D(np_img, axis=new_axis, slice_num=slice_num, temp_dir=temp_dir)
+    vis3D(np_img, axis=new_axis, slice_num=slice_num, temp_dir=temp_dir)
     
 
-def visLossCurve(log_path: str, start_epoch = 10, log=False):
-    log_dir = os.path.join(os.getcwd(), log_path)
-    log = pd.read_csv(os.path.join(log_dir, 'metrics.csv'))
-    loss = list(log['loss'])
-    epoch = list(log['epoch'])
-    avg_val_loss = list(log['avg_val_loss'])
-    epoch_lst = []
-    train_loss = []
-    val_loss = []
-    for i in range(len(loss)):
-        if not math.isnan(epoch[i]) and not math.isnan(avg_val_loss[i]):
-            epoch_lst.append(epoch[i])
-            val_loss.append(avg_val_loss[i])
-            train_loss.append(loss[i-1])
+def vis_loss_curve(log_path: str, data: Dict):
+    
     # draw loss curve
     fig = plt.figure(figsize=(6,4))
     plt.yscale('log')
-    plt.plot(train_loss[start_epoch:], label='train loss')
-    plt.plot(val_loss[start_epoch:], label='validation loss')
+    for key, value in data.items():
+        plt.plot(value['epoch'], value['loss'], label=key)
     plt.xlabel('epoch')
     plt.ylabel('loss')
+    loss_lst = flatten_list([list(value['loss']) for key, value in data.items()])
+    plt.ylim(np.min(loss_lst), 
+              np.percentile(loss_lst, 98))
     plt.legend()
-    fig.savefig(os.path.join(log_dir, 'loss_csv.png'))
-    
+    fig.savefig(os.path.join(log_path, 'loss_csv.png'))
+
+
+def residual_plot(y_true, y_pred):
+    plt.scatter(y_true - y_pred, y_true)
+    plt.savefig('/home/yyhhli/temp.jpeg')
+    pass

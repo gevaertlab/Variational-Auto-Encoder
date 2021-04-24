@@ -2,13 +2,11 @@
 import os
 
 import pytorch_lightning as pl
-import torch
 from torch import optim
-from torch.utils.data import DataLoader, random_split
-# import torchvision.utils as vutils
+from torch.utils.data import DataLoader
 
-from models._type import *
-from dataset import LIDCPathDataset, LNDbDebugDataset, LNDbPathDataset, sitk2tensor
+from dataset import LIDCPatch32Dataset, sitk2tensor
+from models._type import Tensor
 from models.vae_base import VAESkeleton
 from utils.visualization import vis3DTensor
 
@@ -22,6 +20,8 @@ class VAEXperiment(pl.LightningModule):
         self.params = params
         self.curr_device = None
         self.hold_graph = False
+        self.dataloader_params= {'num_workers':4, 
+                                 'pin_memory':True}
         pass
 
     def forward(self, input: Tensor, **kwargs): #  -> Tensor
@@ -32,14 +32,16 @@ class VAEXperiment(pl.LightningModule):
         self.curr_device = real_img.device
 
         results = self.forward(real_img, labels=labels)
+        # the weight of KL loss calculated, should be adjustable
+        M_N = self.params['batch_size'] / self.num_train_imgs
+        self.params['kl_actual_ratio'] = M_N * self.model.beta
         train_loss = self.model.loss_function(*results,
-                                              M_N=self.params['batch_size'] /
-                                              self.num_train_imgs,
+                                              M_N=M_N, 
                                               batch_idx=batch_idx)
 
-        self.logger.experiment.log({key: val.item()
-                                    for key, val in train_loss.items()})
-
+        for key, val in train_loss.items():
+            self.log(key, val.item(), logger=True)
+        
         return train_loss
 
     def validation_step(self, batch, batch_idx, optimizer_idx = 0):
@@ -52,85 +54,75 @@ class VAEXperiment(pl.LightningModule):
                                             self.num_val_imgs,
                                             optimizer_idx = optimizer_idx,
                                             batch_idx=batch_idx)
-
+        # log val_loss and Learning rate
+        self.log('val_loss', val_loss['loss'].item(), logger=True)
+        self.log('lr', self.optimizers().param_groups[0]['lr'], logger=True)
         return val_loss
 
-    def validation_end(self, outputs):
-        avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
-        tensorboard_logs = {'avg_val_loss': avg_loss}
+    def validation_epoch_end(self, outputs):
+        # called at the end of the epoch, 
+        # returns will be logged into metrics file.
         # visualize according to interval
-        if self.current_epoch % int(self.logger.description) == int(self.logger.description) - 1:
+        if self.current_epoch % int(self.logger.vis_interval) == int(self.logger.vis_interval) - 1:
             self.sample_images()
-        return {'val_loss': avg_loss, 'log': tensorboard_logs}
+        pass
 
     def sample_images(self):
         # Get sample reconstruction image
         test_input, test_img_file_names = next(iter(self.sample_dataloader))
         test_input = test_input.to(self.curr_device)
-        # test_label = test_label.to(self.curr_device)
         recons = self.model.generate(test_input) # modified we don't need label
 
         # visualization using our codes
+        # TODO: find save_dir in logger
         vis3DTensor(recons.data, save_dir = os.path.join(f"{self.logger.save_dir}{self.logger.name}/version_{self.logger.version}/media",
                                                          f"recons_{self.logger.name}_{self.current_epoch}.png"))
 
         vis3DTensor(test_input.data, save_dir = os.path.join(f"{self.logger.save_dir}{self.logger.name}/version_{self.logger.version}/media",
                                                              f"real_img_{self.logger.name}_{self.current_epoch}.png"))
-        
-        
-        # vutils.save_image(recons.data,
-        #                   f"{self.logger.save_dir}{self.logger.name}/version_{self.logger.version}/"
-        #                   f"recons_{self.logger.name}_{self.current_epoch}.png",
-        #                   normalize=True,
-        #                   nrow=12)
-
-        # vutils.save_image(test_input.data,
-        #                   f"{self.logger.save_dir}{self.logger.name}/version_{self.logger.version}/"
-        #                   f"real_img_{self.logger.name}_{self.current_epoch}.png",
-        #                   normalize=True,
-        #                   nrow=12)
-
-        # try:
-        #     samples = self.model.sample(144,
-        #                                 self.curr_device,
-        #                                 labels=test_label)
-        #     vutils.save_image(samples.cpu().data,
-        #                       f"{self.logger.save_dir}{self.logger.name}/version_{self.logger.version}/"
-        #                       f"{self.logger.name}_{self.current_epoch}.png",
-        #                       normalize=True,
-        #                       nrow=12)
-        # except:
-        #     pass
 
         del test_input, recons  # , samples
 
     def configure_optimizers(self):
-
         optims = []
         scheds = []
 
         optimizer = optim.Adam(self.model.parameters(),
-                               lr=self.params['LR'],
-                               weight_decay=self.params['weight_decay'])
+                               lr=self.params['LR'])
         optims.append(optimizer)
 
-        try:
-            if self.params['scheduler_gamma'] is not None:
-                scheduler = optim.lr_scheduler.ExponentialLR(optims[0],
-                                                             gamma=self.params['scheduler_gamma'])
-                scheds.append(scheduler)
+        # NOTE: to get steps_per_epoch, need to configure train_loader first to get num_train_imgs
+        self.train_dataloader()
+        # lr scheduler
+        if self.params['max_lr'] is not None:
+            scheduler = optim.lr_scheduler.OneCycleLR(optims[0],
+                                                      epochs=self.params['max_epochs'],
+                                                      steps_per_epoch=self.num_train_imgs//self.params['batch_size'],
+                                                      max_lr = self.params['max_lr'],
+                                                      final_div_factor=self.params['final_div_factor'])
+            scheds.append(scheduler)
             return optims, scheds
-        except:
+        else:
             return optims
 
-    def train_dataloader(self) -> DataLoader:
-        lidc_train = LNDbDebugDataset(size=20, transform=sitk2tensor) # modified
-        self.num_train_imgs = len(lidc_train)
-        return DataLoader(lidc_train, batch_size=self.params['batch_size'], shuffle=True, drop_last=True)
+    def train_dataloader(self): #  -> DataLoader
+        # modified: using only LIDC dataset for simplicity
+        train_ds = LIDCPatch32Dataset(root_dir=None, transform=sitk2tensor, split='train') 
+        self.num_train_imgs = len(train_ds)
+        return DataLoader(train_ds, 
+                          batch_size=self.params['batch_size'], 
+                          shuffle=True, 
+                          drop_last=True,
+                          num_workers=4,
+                          pin_memory=True)
 
     def val_dataloader(self):
-        lndb_val = LNDbDebugDataset(size=20, transform=sitk2tensor) # modified
-        self.num_val_imgs = len(lndb_val)
-        self.sample_dataloader = DataLoader(
-            lndb_val, batch_size=self.params['batch_size'], shuffle=True, drop_last=True) # let val = train in debugging mode to see if overfit
-        return [self.sample_dataloader] # debug modified
+        val_ds = LIDCPatch32Dataset(root_dir=None, transform=sitk2tensor, split='val')
+        self.num_val_imgs = len(val_ds)
+        self.sample_dataloader = DataLoader(val_ds, 
+                                            batch_size=self.params['batch_size'], 
+                                            shuffle=True, 
+                                            drop_last=True,
+                                            num_workers=4,
+                                            pin_memory=True)
+        return [self.sample_dataloader]
