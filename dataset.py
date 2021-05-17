@@ -21,8 +21,12 @@ def train_val_test_split(length: int, ratio: float=0.1, random_state=9001):
         array like: index for train, val and test set
     """
     indices = list(range(length))
-    train_val_idx, test_idx = train_test_split(indices, test_size=ratio, random_state=random_state)
-    train_idx, val_idx = train_test_split(train_val_idx, test_size=ratio/(1-ratio), random_state=random_state)
+    train_val_idx, test_idx = train_test_split(indices, 
+                                               test_size=ratio, 
+                                               random_state=random_state)
+    train_idx, val_idx = train_test_split(train_val_idx, 
+                                          test_size=ratio/(1-ratio), 
+                                          random_state=random_state)
     return train_idx, val_idx, test_idx
 
 
