@@ -118,7 +118,7 @@ class Application:
                                  "labels",
                                  f"Y_matched_{self.task.name}.npy")
         assert os.path.exists(save_path), "file not found"
-        data = np.load(save_path, allow_pickle=True)
+        data = np.load(save_path, allow_pickle=True).item()
         return data
 
     def taskPrediction(self, models='all'):
@@ -142,6 +142,7 @@ class Application:
                                  "labels",
                                  f"Y_matched_{self.task.name}.npy")
         if os.path.exists(save_path):
+            print("loading matched Y")
             Y = self.load_labels()
         # 2. match labels using class task's pylidc method
         else:
@@ -227,14 +228,15 @@ class Application:
             print(f"Saved results to {pred_dict_file}")
 
         # 4. saving pred_stats for best models: use NPY files
-        assert self.pred_stats.keys(), "pred_stats doesn't exist"
-        # save self.pred_stats file
-        pred_stats_file = os.path.join('results', '.'.join(
-            [self.log_name, str(self.version), self.task_name, 'pred_stats', 'npy']))
-        np.save(os.path.join(self.APP_DIR, pred_stats_file), self.pred_stats)
-        if verbose:
-            print(f"Saved results to {pred_stats_file}")
-        pass
+        # NOTE: is ok for the pred_stats to be not exist
+        if self.pred_stats.keys():
+            # save self.pred_stats file
+            pred_stats_file = os.path.join('results', '.'.join(
+                [self.log_name, str(self.version), self.task_name, 'pred_stats', 'npy']))
+            np.save(os.path.join(self.APP_DIR, pred_stats_file), self.pred_stats)
+            if verbose:
+                print(f"Saved results to {pred_stats_file}")
+            pass
 
     def draw_dignosis_figure(self, verbose=True):
         assert self.pred_dict.keys(), "pred_dict not exists"

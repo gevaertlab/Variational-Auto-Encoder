@@ -42,8 +42,12 @@ class TaskBase:
         return X, Y
 
     def transform(self, X, Y):
-        """ do some transformations for X and Y """
-        return X, Y
+        """ standardize X for default, and do nothing to Y """
+        # for X
+        x_train_std, meta_dict = self.normalize(X['train'])
+        x_val_std = (X['val'] - meta_dict['mean']) / meta_dict['std']
+        self.transform_dict = meta_dict
+        return {'train': x_train_std, 'val': x_val_std}, Y
 
     def inverse_transform(self, X=None, Y=None):
         """ do inverse transformation for X or Y """

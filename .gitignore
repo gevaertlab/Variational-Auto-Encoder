@@ -1,6 +1,9 @@
 ### Customized ###
 .vscode/
 logs/
+applications/logs
+applications/results
+perceptual_network/results
 
 ### Linux ###
 *~

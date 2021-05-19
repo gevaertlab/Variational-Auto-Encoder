@@ -11,7 +11,7 @@ from .vae_base import VAESkeleton
 class VAE3D(VAESkeleton):
 
     def __init__(self,
-                 in_channels: int = 1,  # channel = 1
+                 in_channels: int = 1,
                  latent_dim: int = 1024,
                  hidden_dims: List = None,
                  beta=1,

@@ -12,11 +12,11 @@ exp_params:
   final_div_factor: 10000
 
 trainer_params:
-  max_epochs: 50000
+  max_epochs: 5000
   check_val_every_n_epoch: 10
 
 logging_params:
   save_dir: "logs/"
   name: "VAE3D32"
-  visualize_interval: 50 # the interval for outputing visualzation images
+  visualize_interval: 500 # the interval for outputing visualzation images
   manual_seed: 9001

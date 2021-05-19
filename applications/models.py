@@ -173,6 +173,14 @@ def predictWithModel(X: Dict,
                                   y_decision=None,
                                   scoring_func_dict=REGRESSION_METRIC_DICT,
                                   task_type=task_type)
+        # print training results to see if the model can overfit
+        train_metrics = modelEvaluation(y_true=Y['train'],
+                                        y_pred=model.predict(X['train']),
+                                        y_proba=None,
+                                        y_decision=None,
+                                        scoring_func_dict=REGRESSION_METRIC_DICT,
+                                        task_type=task_type)
+        print("Result for training set:", train_metrics)
         return metrics, y_pred, best_params
 
     elif task_type == 'classification':
@@ -188,6 +196,15 @@ def predictWithModel(X: Dict,
                                   y_decision=y_decision,
                                   scoring_func_dict=CLASSIFICATION_METRIC_DICT,
                                   task_type=task_type)
+        # print training results to see if the model can overfit
+        train_metrics = modelEvaluation(y_true=Y['train'],
+                                        y_pred=model.predict(X['train']),
+                                        y_proba=model.predict_proba(
+                                            X['train']),
+                                        y_decision=None,
+                                        scoring_func_dict=CLASSIFICATION_METRIC_DICT,
+                                        task_type=task_type)
+        print("Result for training set:", train_metrics)
         return metrics, y_pred, {'y_proba': y_proba, 'y_decision': y_decision}, best_params
 
 
@@ -209,5 +226,8 @@ def predictTask(X: Dict, Y: Dict,
                                   model_name,
                                   hparam_dict=hparam_dict,
                                   verbose=verbose)
-        result_dict[model_name], pred_dict[model_name], pred_stats[model_name], best_hparams[model_name] = result
+        if task_type == "classification":
+            result_dict[model_name], pred_dict[model_name], pred_stats[model_name], best_hparams[model_name] = result
+        elif task_type == "regression":
+            result_dict[model_name], pred_dict[model_name], best_hparams[model_name] = result
     return result_dict, pred_dict, pred_stats, best_hparams
