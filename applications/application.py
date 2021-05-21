@@ -28,13 +28,18 @@ class Application:
         self.load_dir = os.path.join(
             self.LOG_DIR, log_name, f'version_{version}')  # NOTE
         self.task_name = task_name
+        self.label = LABEL_DICT[task_name]()
         self.task = TASK_DICT[task_name]()
         self.embeddings = {}
         self.result_dict = {}
+        self.timer = Timer()
+
         # further inits
         self._config = self.__load_config__(self.load_dir)
+
         # init the experiment and load checkpoint
         self.module = self.__init_model__(self.load_dir, self.base_model_name)
+
         # results
         self.result_dict = {}
         self.pred_dict = {}
@@ -62,7 +67,7 @@ class Application:
         ckpt_path = os.path.join(ckpt_dir, sorted(os.listdir(ckpt_dir))[-1])
         return ckpt_path
 
-    def embed(self, split='train'):
+    def get_embeddings(self, split='train'):
 
         if split == 'train':
             dataloader = self.module.train_dataloader()
@@ -76,11 +81,13 @@ class Application:
             self.embeddings[split] = Embedding(
                 self.log_name, self.version, split=split)
 
-        if self.embeddings[split].saved:  # if saved directly load
+        if self.embeddings[split].saved:  
+            # if saved directly load
             print(f"Loading embeddings: {split} ...")
             _ = self.embeddings[split].load()
 
-        else:  # if not saved, predict
+        else:  
+            # if not saved, predict
             print(f"New embedding, predicting: {split} ...")
             for data, file_names in tqdm(dataloader):
                 idx = [file_name.replace('.nrrd', '')
@@ -98,10 +105,10 @@ class Application:
         assert split in self.embeddings.keys(
         ), f'Embedding not defined for {split}, cannot get labels'
         file_lst = self.embeddings[split].embeddings['index']
-        timer = Timer()
-        timer()
-        labels = self.task.match_labels(data_lst=file_lst)
-        timer('match labels')
+        self.timer()
+        labels = self.task.get_labels(file_lst)
+        # labels = self.task.match_labels(data_lst=file_lst)
+        self.timer('match labels')
         return labels
 
     def save_labels(self, data):
@@ -112,6 +119,7 @@ class Application:
         np.save(save_path, data)
         print(f"saved to {save_path}")
         pass
+    # TODO: how to solve the problem of matching and loading logic!!!
 
     def load_labels(self):
         save_path = os.path.join(self.embeddings['train'].LOG_DIR,
@@ -129,33 +137,43 @@ class Application:
         Returns:
             dict: results (metrics) of predictions
         """
-        self.embed(split='train')
-        self.embed(split='val')
+        
+        # get X
+        self.get_embeddings(split='train')
+        self.get_embeddings(split='val')
 
         # format the X and Y so that they can be taken by sklearn models
         X = {'train': self.embeddings['train'].getEmbedding(),
              'val': self.embeddings['val'].getEmbedding()}
 
-        # two options to get Y:
-        # 1. load it from log
-        save_path = os.path.join(self.embeddings['train'].LOG_DIR,  # NODE: duplicate code
-                                 "labels",
-                                 f"Y_matched_{self.task.name}.npy")
-        if os.path.exists(save_path):
-            print("loading matched Y")
-            Y = self.load_labels()
-        # 2. match labels using class task's pylidc method
-        else:
-            Y = {'train': np.array(self.getLabels(split='train')),
-                 'val': np.array(self.getLabels(split='val'))}
-            self.save_labels(Y)
+        # get Y
+        
+        # modified, using label instance, loading with file names
+        data_names = {'train': self.embeddings['train'].embeddings['index'],
+                      'val': self.embeddings['val'].embeddings['index']}
 
-        # get aligned X and Y, HACK: currently doing nothing
-        X['train'], Y['train'] = self.task.merge(X['train'], Y['train'])
-        X['val'], Y['val'] = self.task.merge(X['val'], Y['val'])
+        Y = {'train': self.label.get_labels(data_names['train']),
+             'val': self.label.get_labels(data_names['val'])}
+
+        # save_path = os.path.join(self.embeddings['train'].LOG_DIR,  # NODE: duplicate code
+        #                          "labels",
+        #                          f"Y_matched_{self.task.name}.npy")
+        # if os.path.exists(save_path):
+        #     print("loading matched Y")
+        #     Y = self.load_labels()
+
+        # # 2. match labels using class task's pylidc method
+        # else:
+        #     Y = {'train': np.array(self.getLabels(split='train')),
+        #          'val': np.array(self.getLabels(split='val'))}
+        #     self.save_labels(Y)
+
+        # # get aligned X and Y, HACK: currently doing nothing
+        # X['train'], Y['train'] = self.task.merge(X['train'], Y['train'])
+        # X['val'], Y['val'] = self.task.merge(X['val'], Y['val'])
 
         # save Ys
-        os.path.join(self.embeddings['train'].LOG_DIR, "labels")
+        # os.path.join(self.embeddings['train'].LOG_DIR, "labels")
 
         # preprocess X and Y
         X, Y = self.task.transform(X, Y)
@@ -321,3 +339,16 @@ class Embedding:
         if not self.saved:
             self.save()
         return np.array(self.embeddings['embedding'])
+
+
+def debug():
+    ap = Application(log_name='VAE32',
+                     version=48,
+                     task_name='malignancy',
+                     base_model_name='VAE3D')
+    ap.get_labels()
+    print(volume)
+
+
+if __name__ == '__main__':
+    debug()

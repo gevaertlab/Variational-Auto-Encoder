@@ -124,7 +124,7 @@ class VAE3D(VAESkeleton):
         """
         std = torch.exp(0.5 * logvar)
         eps = torch.randn_like(std)
-        return eps * std * 0 + mu  # modified, try to reduce the variance of output
+        return eps * std + mu
 
     def forward(self, input: Tensor, **kwargs):  # -> List[Tensor]
         mu, log_var = self.encode(input)

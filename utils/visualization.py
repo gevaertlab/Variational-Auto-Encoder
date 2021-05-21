@@ -69,7 +69,7 @@ def visSitk(img, axis=2, slice_num=None, temp_dir='/home/yyhhli/code/image data/
     vis3D(np_img, axis=new_axis, slice_num=slice_num, temp_dir=temp_dir)
 
 
-def vis_loss_curve(log_path: str, data: Dict):
+def vis_loss_curve(log_path: str, data: Dict, name='loss_csv.jpeg'):
 
     # draw loss curve
     fig = plt.figure(figsize=(6, 4))
@@ -83,22 +83,29 @@ def vis_loss_curve(log_path: str, data: Dict):
     plt.ylim(np.min(loss_lst),
              np.percentile(loss_lst, 98))
     plt.legend()
-    fig.savefig(os.path.join(log_path, 'loss_csv.png'))
+    fig.savefig(os.path.join(log_path,
+                             name),
+                dpi=200)
     plt.close()
 
 
-def vis_loss_curve_diff_scale(log_path: str, data: Dict):
+def vis_loss_curve_diff_scale(log_path: str, data: Dict,
+                              name='loss_curve_kl_recon.jpeg'):
     """ draw loss curve with two diff scales """
     fig, ax1 = plt.subplots(figsize=(6, 4))
     plt.yscale('log')
-    # extract keys, assert only two
-    keys = data.keys()
+    # extract keys as list, assert only two
+    keys = list(data.keys())
     assert len(keys) == 2
 
     # plot the first one
     ax1.set_xlabel('epoch')
     ax1.set_ylabel(keys[0])
-    ax1.plot(data[keys[0]]['epoch'], data[keys[0]]['loss'])
+    ax1.set_yscale('log')
+    ax1.plot(data[keys[0]]['epoch'],
+             data[keys[0]]['loss'],
+             c='tab:red',
+             linewidth=0.5)
     ax1.tick_params(axis='y', labelcolor='tab:red')
 
     # plot the second one
@@ -106,10 +113,16 @@ def vis_loss_curve_diff_scale(log_path: str, data: Dict):
 
     ax2.set_xlabel('epoch')
     ax2.set_ylabel(keys[1])
-    ax2.plot(data[keys[1]]['epoch'], data[keys[1]]['loss'])
+    ax2.set_yscale('log')
+    ax2.plot(data[keys[1]]['epoch'],
+             data[keys[1]]['loss'],
+             c='tab:blue',
+             linewidth=0.5)
     ax2.tick_params(axis='y', labelcolor='tab:blue')
 
-    fig.savefig(log_path)
+    fig.savefig(os.path.join(log_path,
+                             name),
+                dpi=250)
     plt.close()
 
 

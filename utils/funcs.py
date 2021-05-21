@@ -54,3 +54,20 @@ class Timer:
             self.show(name)
             self.renew()
         pass
+
+
+def get_order(lst, ref_lst):
+    """ 
+    get order of list according to ref_lst 
+    e.g. 
+    lst = ['a', 'c', 'b', 'd']
+    ref_lst = ['a', 'b', 'c', 'd']
+    return = [0, 2, 1, 3]
+    """
+    ref_order = {ref:i for (i, ref) in enumerate(ref_lst)}
+    return [ref_order[ele] for ele in lst]
+
+
+def reorder(lst, order):
+    """ reorder the array according to the order """
+    return [ele for o, ele in sorted(zip(order, lst))]

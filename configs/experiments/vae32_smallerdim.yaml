@@ -3,7 +3,7 @@ model_params:
   in_channels: 1
   latent_dim: 512
   beta: 1
-  hidden_dims: [4, 16, 64, 256] # only four layer because the size of the patch is changed
+  hidden_dims: [4, 16, 64, 256] # only four layer because the size of the patch is changed
 
 exp_params:
   LR: 0.002 # testing

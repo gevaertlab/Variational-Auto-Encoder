@@ -77,8 +77,7 @@ class VAELogger(TestTubeLogger):
         kl_loss_dict = {'epoch': list(kl_loss_df['epoch']),
                         'loss': list(kl_loss_df['KLD'])}
 
-        vis_loss_curve_diff_scale(log_path=os.path.join(abs_log_path,
-                                                        "loss_curve_kl_recon.jpeg"),
+        vis_loss_curve_diff_scale(log_path=abs_log_path,
                                   data={'recon loss': recon_loss_dict,
                                         'kl loss': kl_loss_dict})
         pass
