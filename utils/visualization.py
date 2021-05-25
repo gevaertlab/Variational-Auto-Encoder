@@ -1,15 +1,20 @@
 ''' This file provides util functions to visualize various type of data '''
-import matplotlib.pyplot as plt
-import SimpleITK as sitk
-import numpy as np
-import torchvision.utils as vutils
+import math
 import os
-import math
-import pandas as pd
 from typing import Dict
-from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+
+import matplotlib.cm as cm
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import SimpleITK as sitk
+import torchvision.utils as vutils
+from matplotlib.ticker import MultipleLocator, ScalarFormatter
+from mpl_toolkits import axisartist
+from mpl_toolkits.axes_grid1 import host_subplot
+from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
 from sklearn.utils.multiclass import unique_labels
-import math
+
 plt.style.use('ggplot')
 
 
@@ -69,7 +74,7 @@ def visSitk(img, axis=2, slice_num=None, temp_dir='/home/yyhhli/code/image data/
     vis3D(np_img, axis=new_axis, slice_num=slice_num, temp_dir=temp_dir)
 
 
-def vis_loss_curve(log_path: str, data: Dict, name='loss_csv.jpeg'):
+def vis_loss_curve(log_path: str, data: Dict, name='loss_curve.jpeg'):
 
     # draw loss curve
     fig = plt.figure(figsize=(6, 4))
@@ -83,44 +88,72 @@ def vis_loss_curve(log_path: str, data: Dict, name='loss_csv.jpeg'):
     plt.ylim(np.min(loss_lst),
              np.percentile(loss_lst, 98))
     plt.legend()
+    plt.tight_layout()
     fig.savefig(os.path.join(log_path,
                              name),
                 dpi=200)
     plt.close()
 
 
-def vis_loss_curve_diff_scale(log_path: str, data: Dict,
-                              name='loss_curve_kl_recon.jpeg'):
-    """ draw loss curve with two diff scales """
-    fig, ax1 = plt.subplots(figsize=(6, 4))
-    plt.yscale('log')
-    # extract keys as list, assert only two
+def vis_loss_curve_diff_scale(log_path: str,
+                              data: Dict,
+                              name='loss_curve_kl_recon.jpeg',
+                              color_map='Set1',
+                              offset=80):
+    """ draw loss curve with multiple diff scales """
+    plt.style.use('bmh')
+    plt.figure(figsize=(14, 6))
+
+    host = host_subplot(111, axes_class=axisartist.Axes)
+    plt.subplots_adjust(right=0.75)
+    # can be multiple scales (keys)
     keys = list(data.keys())
-    assert len(keys) == 2
 
-    # plot the first one
-    ax1.set_xlabel('epoch')
-    ax1.set_ylabel(keys[0])
-    ax1.set_yscale('log')
-    ax1.plot(data[keys[0]]['epoch'],
-             data[keys[0]]['loss'],
-             c='tab:red',
-             linewidth=0.5)
-    ax1.tick_params(axis='y', labelcolor='tab:red')
+    # define color map
+    cmap = cm.get_cmap(color_map, len(keys))
 
-    # plot the second one
-    ax2 = ax1.twinx()
+    # define linestyles
+    linestyles = ['-', '--', '-.', ':']
 
-    ax2.set_xlabel('epoch')
-    ax2.set_ylabel(keys[1])
-    ax2.set_yscale('log')
-    ax2.plot(data[keys[1]]['epoch'],
-             data[keys[1]]['loss'],
-             c='tab:blue',
-             linewidth=0.5)
-    ax2.tick_params(axis='y', labelcolor='tab:blue')
+    # define axes
+    axes = [host]
+    for i in range(len(keys)):
+        axes.append(host.twinx())
 
-    fig.savefig(os.path.join(log_path,
+    # adjust positions
+    for i in range(len(keys)):
+        if i >= 1:
+            axes[i].axis['right'] = axes[i].new_fixed_axis(loc="right",
+                                                           offset=(offset * (i-1), 0))
+            axes[i].axis['right'].toggle(all=True)
+
+    # draw plots
+    for i, key in enumerate(keys):
+        # plots
+        axes[i].set_xlabel('epoch')
+        axes[i].set_ylabel(key, size='x-small')
+        axes[i].set_yscale('log')
+        if isinstance(data[key], dict):
+            axes[i].plot(data[key]['epoch'],
+                         data[key]['loss'],
+                         c=cmap(i),
+                         label=key,
+                         linewidth=1)
+        elif isinstance(data[key], list):
+            sub_dict = data[key][0]
+            for j, sub_key in enumerate(sub_dict.keys()):
+                axes[i].plot(sub_dict[sub_key]['epoch'],
+                             sub_dict[sub_key]['loss'],
+                             c=cmap(i),
+                             linestyle=linestyles[j],
+                             label=sub_key,
+                             linewidth=1)
+        axes[i].axis['right'].label.set_color(cmap(i))
+        axes[i].tick_params(axis='y', labelcolor=cmap(i))
+
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(os.path.join(log_path,
                              name),
                 dpi=250)
     plt.close()

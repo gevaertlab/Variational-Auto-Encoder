@@ -39,57 +39,82 @@ class VAELogger(TestTubeLogger):
 
         self.vis_interval = vis_interval
         self.config_file = config_file
-        self._version = getVersion(os.path.join(self._save_dir, self._name))
+        if version is None:
+            self._version = getVersion(
+                os.path.join(self._save_dir, self._name))
+        else:
+            self._version = version
+        self.log_file = None
+        self.abs_log_path = None
+
+    def _get_vis_loss_dict(self,
+                           log: pd.DataFrame,
+                           col_name: str):
+        df = log[['epoch', col_name]].dropna()
+        loss = list(df[col_name])
+        epoch = list(df['epoch'])
+        return {'epoch': epoch,
+                'loss': loss}
+
+    def _load_log_file(self):
+        # renew log file each time calling this function
+
+        rel_log_path = os.path.join(self._save_dir,
+                                    self._name,
+                                    f'version_{self.version}')
+        abs_log_path = os.path.join(os.getcwd(), rel_log_path)
+        self.abs_log_path = abs_log_path
+        log_file = pd.read_csv(os.path.join(abs_log_path, 'metrics.csv'))
+        self.log_file = log_file
+        return self.log_file
 
     def draw_loss_curve(self):
-        rel_log_path = os.path.join(
-            self._save_dir, self._name, f'version_{self.version}')
-        abs_log_path = os.path.join(os.getcwd(), rel_log_path)
-        log = pd.read_csv(os.path.join(abs_log_path, 'metrics.csv'))
+        log = self._load_log_file()
 
-        train_loss_df = log[['epoch', 'loss']].dropna()
-        val_loss_df = log[['epoch', 'val_loss']].dropna()
+        train_loss_dict = self._get_vis_loss_dict(log, 'loss')
+        val_loss_dict = self._get_vis_loss_dict(log, 'val_loss')
 
-        train_loss = list(train_loss_df['loss'])
-        val_loss = list(val_loss_df['val_loss'])
-
-        train_loss_dict = {'epoch': list(train_loss_df['epoch']),
-                           'loss': train_loss}
-        val_loss_dict = {'epoch': list(val_loss_df['epoch']),
-                         'loss': val_loss}
-
-        vis_loss_curve(log_path=abs_log_path,
+        vis_loss_curve(log_path=self.abs_log_path,
                        data={'train': train_loss_dict, 'val': val_loss_dict})
 
         pass
 
     def draw_kl_recon_loss(self):
-        rel_log_path = os.path.join(
-            self._save_dir, self._name, f'version_{self.version}')
-        abs_log_path = os.path.join(os.getcwd(), rel_log_path)
-        log = pd.read_csv(os.path.join(abs_log_path, 'metrics.csv'))
+        log = self._load_log_file()
 
-        recon_loss_df = log[['epoch', 'Reconstruction_Loss']].dropna()
-        kl_loss_df = log[['epoch', 'KLD']].dropna()
+        recon_loss_dict = self._get_vis_loss_dict(log, 'Reconstruction_Loss')
+        kl_loss_dict = self._get_vis_loss_dict(log, 'KLD')
 
-        recon_loss_dict = {'epoch': list(recon_loss_df['epoch']),
-                           'loss': list(recon_loss_df['Reconstruction_Loss'])}
-        kl_loss_dict = {'epoch': list(kl_loss_df['epoch']),
-                        'loss': list(kl_loss_df['KLD'])}
-
-        vis_loss_curve_diff_scale(log_path=abs_log_path,
+        vis_loss_curve_diff_scale(log_path=self.abs_log_path,
                                   data={'recon loss': recon_loss_dict,
                                         'kl loss': kl_loss_dict})
         pass
 
+    def draw_multiple_loss_curves(self):
+        log = self._load_log_file()
+
+        recon_loss_dict = self._get_vis_loss_dict(log, 'Reconstruction_Loss')
+        kl_loss_dict = self._get_vis_loss_dict(log, 'KLD')
+        train_loss_dict = self._get_vis_loss_dict(log, 'loss')
+        val_loss_dict = self._get_vis_loss_dict(log, 'val_loss')
+        lr_dict = self._get_vis_loss_dict(log, 'lr')
+
+        vis_loss_curve_diff_scale(log_path=self.abs_log_path,
+                                  data={'train val losses': [{'train loss': train_loss_dict,
+                                                              'val loss': val_loss_dict}],
+                                        'recon loss': recon_loss_dict,
+                                        'kl loss': kl_loss_dict,
+                                        'learning rate': lr_dict},
+                                  name="diagnostic_loss_curve.jpeg")
+
     def finalize(self, status: str):  # -> None
         super().finalize(status)
-        # TODO: HACK figure out where this is being set to true
         self.experiment.debug = self.debug
         log_dir = os.path.join(self._save_dir, self._name,
                                f'version_{self.version}')
         self.draw_loss_curve()
         self.draw_kl_recon_loss()
+        self.draw_multiple_loss_curves()
         saveConfig(log_dir, self.config_file)
         self.save()
         self.close()

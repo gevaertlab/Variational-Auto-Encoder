@@ -25,6 +25,17 @@ class Label:
                                  f"Y_matched_{self.name}.npy")
         return save_path
 
+    def get_scan_ann_from_file_name(self, data_name: str):
+        """
+        :param: data_name: ([patient_id].[ann_id]).nrrd
+        """
+        patient_id, ann_id = data_name.split('.')[0], data_name.split('.')[1]
+        scan = dc.query(dc.Scan).filter(
+            dc.Scan.patient_id == patient_id).first()
+        ann = dc.query(dc.Annotation).filter(
+            dc.Annotation.id == ann_id).first()
+        return scan, ann
+
     def match_label(self, name):
         raise NotImplementedError
 

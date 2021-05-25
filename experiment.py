@@ -35,7 +35,8 @@ class VAEXperiment(pl.LightningModule):
         # the weight of KL loss calculated, should be adjustable
         M_N = self.params['batch_size'] / self.num_train_imgs
         self.params['kl_actual_ratio'] = M_N * self.model.beta
-        train_loss = self.model.loss_function(*results,
+        train_loss = self.model.loss_f
+        unction(*results,
                                               M_N=M_N,
                                               batch_idx=batch_idx)
 
@@ -75,15 +76,19 @@ class VAEXperiment(pl.LightningModule):
         recons = self.model.generate(test_input)
 
         # visualization using our codes
-        # TODO: find save_dir in logger
         vis3DTensor(recons.data, save_dir=os.path.join(f"{self.logger.save_dir}{self.logger.name}/version_{self.logger.version}/media",
                                                        f"recons_{self.logger.name}_{self.current_epoch}.png"))
 
         vis3DTensor(test_input.data, save_dir=os.path.join(f"{self.logger.save_dir}{self.logger.name}/version_{self.logger.version}/media",
                                                            f"real_img_{self.logger.name}_{self.current_epoch}.png"))
-
         del test_input, recons  # , samples
-
+        
+        # draw loss curves
+        self.logger.draw_loss_curve()
+        self.logger.draw_kl_recon_loss()
+        self.logger.draw_multiple_loss_curves()
+        pass
+        
     def configure_optimizers(self):
         optims = []
         scheds = []

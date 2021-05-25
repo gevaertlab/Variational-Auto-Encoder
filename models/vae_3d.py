@@ -131,6 +131,7 @@ class VAE3D(VAESkeleton):
         z = self.reparameterize(mu, log_var)
         return [self.decode(z), input, mu, log_var]
 
+
     def loss_function(self,
                       *args,
                       **kwargs):  # -> dict

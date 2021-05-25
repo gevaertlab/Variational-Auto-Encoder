@@ -22,7 +22,7 @@ if __name__ == '__main__':
                         dest="filename",
                         metavar='FILE',
                         help='config file name in /configs folder',
-                        default='experiments/vae32_largerdim')
+                        default='vae32_debug')
 
     args = parser.parse_args()
     file_path = os.path.join(BASE_DIR, 'configs', args.filename + '.yaml')

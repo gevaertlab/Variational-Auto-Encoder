@@ -1,0 +1,22 @@
+model_params:
+  name: "VAE3D"
+  in_channels: 1
+  latent_dim: 1024
+  beta: 1
+  hidden_dims: [4, 16, 32, 64] # only four layer because the size of the patch is changed
+
+exp_params:
+  LR: 0.0002 # testing
+  batch_size: 36 # better to have a square number. Why?
+  max_lr: 0.05
+  final_div_factor: 10000
+
+trainer_params:
+  max_epochs: 50
+  check_val_every_n_epoch: 1
+
+logging_params:
+  save_dir: "logs/"
+  name: "VAE3D32"
+  visualize_interval: 5 # SHOULD BE LARGER THAN val
+  manual_seed: 9001

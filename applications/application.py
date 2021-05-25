@@ -155,26 +155,6 @@ class Application:
         Y = {'train': self.label.get_labels(data_names['train']),
              'val': self.label.get_labels(data_names['val'])}
 
-        # save_path = os.path.join(self.embeddings['train'].LOG_DIR,  # NODE: duplicate code
-        #                          "labels",
-        #                          f"Y_matched_{self.task.name}.npy")
-        # if os.path.exists(save_path):
-        #     print("loading matched Y")
-        #     Y = self.load_labels()
-
-        # # 2. match labels using class task's pylidc method
-        # else:
-        #     Y = {'train': np.array(self.getLabels(split='train')),
-        #          'val': np.array(self.getLabels(split='val'))}
-        #     self.save_labels(Y)
-
-        # # get aligned X and Y, HACK: currently doing nothing
-        # X['train'], Y['train'] = self.task.merge(X['train'], Y['train'])
-        # X['val'], Y['val'] = self.task.merge(X['val'], Y['val'])
-
-        # save Ys
-        # os.path.join(self.embeddings['train'].LOG_DIR, "labels")
-
         # preprocess X and Y
         X, Y = self.task.transform(X, Y)
 
@@ -341,14 +321,14 @@ class Embedding:
         return np.array(self.embeddings['embedding'])
 
 
-def debug():
-    ap = Application(log_name='VAE32',
-                     version=48,
-                     task_name='malignancy',
-                     base_model_name='VAE3D')
-    ap.get_labels()
-    print(volume)
+# def debug():
+#     ap = Application(log_name='VAE32',
+#                      version=48,
+#                      task_name='malignancy',
+#                      base_model_name='VAE3D')
+#     ap.get_labels()
+#     print(volume)
 
 
-if __name__ == '__main__':
-    debug()
+# if __name__ == '__main__':
+#     debug()
