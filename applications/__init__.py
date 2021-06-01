@@ -1,7 +1,14 @@
 from .tasks import TaskVolume, TaskMalignancy, TaskTexture, TaskSpiculation, TaskSubtlety
+from .labels import LabelVolume, LabelMalignancy, LabelTexture, LabelSpiculation, LabelSubtlety
 
-TASK_DICT = {'task_volume': TaskVolume,
-             'task_malignancy': TaskMalignancy,
-             'task_texture': TaskTexture,
-             'task_spiculation': TaskSpiculation,
-             'task_subtlety': TaskSubtlety}
+TASK_DICT = {'volume': TaskVolume,
+             'malignancy': TaskMalignancy,
+             'texture': TaskTexture,
+             'spiculation': TaskSpiculation,
+             'subtlety': TaskSubtlety}
+
+LABEL_DICT = {'volume': LabelVolume,
+              'malignancy': LabelMalignancy,
+              'texture': LabelTexture,
+              'spiculation': LabelSpiculation,
+              'subtlety': LabelSubtlety}

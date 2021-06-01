@@ -12,12 +12,12 @@ class Label:
 
     def __init__(self,
                  name: str = 'volume',
-                 log_dir='/labs/gevaertlab/users/yyhhli/code/vae/applications/logs/labels'):
+                 log_dir='/labs/gevaertlab/users/yyhhli/code/vae/applications/logs/'):
         self.name = name
         self.log_dir = log_dir
         self.save_path = self._get_save_path()
-        self.labels = None
-        self.data_names = None
+        self.labels = {}
+        self.data_names = {}
 
     def _get_save_path(self):
         save_path = os.path.join(self.log_dir,
@@ -36,11 +36,11 @@ class Label:
             dc.Annotation.id == ann_id).first()
         return scan, ann
 
-    def match_label(self, name):
+    def match_label(self, data_name):
         raise NotImplementedError
 
     def match_labels(self, data_names, n_jobs=cpu_count()):  # pool map
-        print("Matching labels ...")
+        print("matching labels ...")
         pool = Pool(processes=n_jobs)
         return pool.map(self.match_label, data_names)
 
@@ -58,7 +58,7 @@ class Label:
         self.data_names = data['data_names']
         return data
 
-    def get_labels(self, data_names):
+    def get_labels(self, data_names, split='train'):
         """ 
         get labels from 3 approaches 
         1. load
@@ -66,28 +66,28 @@ class Label:
         3. match
         """
         # if stored, directly return it
-        if self.labels is None:
+        if split not in self.labels.keys():
             # try loading
             if os.path.exists(self.save_path):
                 self.load_labels()
                 # examine the matching
-                if self.data_names != data_names:
-                    self.reorder(data_names)
-
+                if self.data_names[split] != data_names:
+                    reordered_labels = self.reorder_labels(data_names, split, replace=False)
+                    return reordered_labels
             # else: matching
             else:
-                self.labels = self.match_labels(data_names)
-            self.data_names = data_names
-        return self.labels
+                self.labels[split] = self.match_labels(data_names)
+            self.data_names[split] = data_names
+        return self.labels[split]
 
-    def reorder_labels(self, data_names: List, replace=True):
+    def reorder_labels(self, data_names: List, split='train', replace=True):
         """ reorder labels according to data_names """
-        order = get_order(self.data_names, data_names)
-        reordered_labels = reorder(self.labels, order)
+        order = get_order(self.data_names[split], data_names)
+        reordered_labels = reorder(self.labels[split], order)
         if replace:
-            self.labels = reordered_labels
-            self.data_names = data_names
-        return self.labels
+            self.labels[split] = reordered_labels
+            self.data_names[split] = data_names
+        return reordered_labels
 
 
 class LabelVolume(Label):

@@ -1,7 +1,7 @@
 ''' This file utilize the trained encoder to do downstream tasks '''
 
 
-from applications import TASK_DICT
+from . import TASK_DICT, LABEL_DICT
 from models import VAE_MODELS
 from experiment import VAEXperiment
 import torch
@@ -12,8 +12,8 @@ import numpy as np
 import json
 from .models import predictTask
 from tqdm import tqdm
-from utils.visualization import ytrue_ypred_scatter, confusion_matrix_models
-from utils.funcs import Timer
+from utils.visualization import vis_heatmap, ytrue_ypred_scatter, confusion_matrix_models, vis_pca, vis_tsne
+from utils.funcs import Timer, get_order, reorder
 
 
 class Application:
@@ -27,6 +27,11 @@ class Application:
         self.version = version
         self.load_dir = os.path.join(
             self.LOG_DIR, log_name, f'version_{version}')  # NOTE
+        self.save_dir = os.path.join(
+            self.APP_DIR, "results", f"{self.log_name}_{self.version}")
+        if not os.path.exists(self.save_dir):
+            os.mkdir(self.save_dir)
+
         self.task_name = task_name
         self.label = LABEL_DICT[task_name]()
         self.task = TASK_DICT[task_name]()
@@ -37,14 +42,33 @@ class Application:
         # further inits
         self._config = self.__load_config__(self.load_dir)
 
-        # init the experiment and load checkpoint
+        # init: the experiment and load checkpoint
         self.module = self.__init_model__(self.load_dir, self.base_model_name)
+
+        # init: data preparation
+        self.data_prep()
 
         # results
         self.result_dict = {}
         self.pred_dict = {}
         self.hparam_dict = {}
         self.pred_stats = {}
+        pass
+
+    def data_prep(self):
+
+        # save embeddings
+        self.get_embeddings(split='train')
+        self.get_embeddings(split='val')
+
+        # modified, using label instance, loading with file names
+        data_names = {'train': self.embeddings['train'].embeddings['index'],
+                      'val': self.embeddings['val'].embeddings['index']}
+
+        # save labels
+        self.label.get_labels(data_names['train'], split='train')
+        self.label.get_labels(data_names['val'], split='val')
+        self.label.save_labels()
         pass
 
     def __load_config__(self, load_dir):
@@ -70,10 +94,12 @@ class Application:
     def get_embeddings(self, split='train'):
 
         if split == 'train':
-            dataloader = self.module.train_dataloader()
+            dataloader = self.module.train_dataloader(
+                shuffle=False, drop_last=False)
             dataloader.shuffle = False
         elif split == 'val':
-            dataloader = self.module.val_dataloader()[0]
+            dataloader = self.module.val_dataloader(
+                shuffle=False, drop_last=False)[0]
         else:
             raise NotImplementedError(f'split {split} does not supported')
 
@@ -81,12 +107,12 @@ class Application:
             self.embeddings[split] = Embedding(
                 self.log_name, self.version, split=split)
 
-        if self.embeddings[split].saved:  
+        if self.embeddings[split].saved:
             # if saved directly load
             print(f"Loading embeddings: {split} ...")
             _ = self.embeddings[split].load()
 
-        else:  
+        else:
             # if not saved, predict
             print(f"New embedding, predicting: {split} ...")
             for data, file_names in tqdm(dataloader):
@@ -101,13 +127,12 @@ class Application:
         pass
 
     def getLabels(self, split: str = 'train'):
-        """ NOTE: could be time comsuming """
+        """ NOTE: deprecated """
         assert split in self.embeddings.keys(
         ), f'Embedding not defined for {split}, cannot get labels'
         file_lst = self.embeddings[split].embeddings['index']
         self.timer()
-        labels = self.task.get_labels(file_lst)
-        # labels = self.task.match_labels(data_lst=file_lst)
+        labels = self.label.get_labels(file_lst)
         self.timer('match labels')
         return labels
 
@@ -119,7 +144,6 @@ class Application:
         np.save(save_path, data)
         print(f"saved to {save_path}")
         pass
-    # TODO: how to solve the problem of matching and loading logic!!!
 
     def load_labels(self):
         save_path = os.path.join(self.embeddings['train'].LOG_DIR,
@@ -129,6 +153,24 @@ class Application:
         data = np.load(save_path, allow_pickle=True).item()
         return data
 
+    def get_data(self, preprocess=True):
+        # format the X and Y so that they can be taken by sklearn models
+        X = {'train': self.embeddings['train'].getEmbedding(),
+             'val': self.embeddings['val'].getEmbedding()}
+
+        # get Y
+
+        # modified, using label instance, loading with file names
+        data_names = {'train': self.embeddings['train'].embeddings['index'],
+                      'val': self.embeddings['val'].embeddings['index']}
+
+        Y = {'train': self.label.get_labels(data_names['train'], split='train'),
+             'val': self.label.get_labels(data_names['val'], split='val')}
+        if preprocess:
+            # preprocess X and Y
+            X, Y = self.task.transform(X, Y)
+        return X, Y
+
     def taskPrediction(self, models='all'):
         """
         Predict a task
@@ -137,26 +179,8 @@ class Application:
         Returns:
             dict: results (metrics) of predictions
         """
-        
-        # get X
-        self.get_embeddings(split='train')
-        self.get_embeddings(split='val')
 
-        # format the X and Y so that they can be taken by sklearn models
-        X = {'train': self.embeddings['train'].getEmbedding(),
-             'val': self.embeddings['val'].getEmbedding()}
-
-        # get Y
-        
-        # modified, using label instance, loading with file names
-        data_names = {'train': self.embeddings['train'].embeddings['index'],
-                      'val': self.embeddings['val'].embeddings['index']}
-
-        Y = {'train': self.label.get_labels(data_names['train']),
-             'val': self.label.get_labels(data_names['val'])}
-
-        # preprocess X and Y
-        X, Y = self.task.transform(X, Y)
+        X, Y = self.get_data()
 
         # TRAIN + PREDICT
         self.load_hparam_dict()
@@ -176,8 +200,8 @@ class Application:
     def load_hparam_dict(self):
         """ load hparam dictionary which should be the same place as save"""
 
-        hparam_log_file = os.path.join('results', '.'.join(
-            [self.log_name, str(self.version), self.task_name, 'best_hparams', 'json']))
+        hparam_log_file = os.path.join(self.save_dir, '.'.join(
+            [self.task_name, 'best_hparams', 'json']))
         hparam_log_file_path = os.path.join(self.APP_DIR, hparam_log_file)
         if os.path.exists(hparam_log_file_path):
             print("Loading best hparams ...")
@@ -199,8 +223,8 @@ class Application:
         # 1. saving metrics for best models
         assert self.result_dict.keys(), "result_dict doesn't exist"
         # save result_dict file
-        result_log_file = os.path.join('results', '.'.join(
-            [self.log_name, str(self.version), self.task_name, 'json']))
+        result_log_file = os.path.join(
+            self.save_dir, '.'.join([self.task_name, 'json']))
         with open(os.path.join(self.APP_DIR, result_log_file), 'w') as f:
             json.dump(self.result_dict, f)
         if verbose:
@@ -209,8 +233,8 @@ class Application:
         # 2. saveing hyperparameters for best models
         assert self.hparam_dict.keys(), "hparam_dict doesn't exist"
         # save hparam_dict file
-        hparam_log_file = os.path.join('results', '.'.join(
-            [self.log_name, str(self.version), self.task_name, 'best_hparams', 'json']))
+        hparam_log_file = os.path.join(self.save_dir, '.'.join(
+            [self.task_name, 'best_hparams', 'json']))
         with open(os.path.join(self.APP_DIR, hparam_log_file), 'w') as f:
             json.dump(self.hparam_dict, f)
         if verbose:
@@ -219,8 +243,8 @@ class Application:
         # 3. saving predictions for best models: use NPY files
         assert self.pred_dict.keys(), "pred_dict doesn't exist"
         # save pred_dict file
-        pred_dict_file = os.path.join('results', '.'.join(
-            [self.log_name, str(self.version), self.task_name, 'preds', 'npy']))
+        pred_dict_file = os.path.join(
+            self.save_dir, '.'.join([self.task_name, 'preds', 'npy']))
         np.save(os.path.join(self.APP_DIR, pred_dict_file), self.pred_dict)
         if verbose:
             print(f"Saved results to {pred_dict_file}")
@@ -229,8 +253,8 @@ class Application:
         # NOTE: is ok for the pred_stats to be not exist
         if self.pred_stats.keys():
             # save self.pred_stats file
-            pred_stats_file = os.path.join('results', '.'.join(
-                [self.log_name, str(self.version), self.task_name, 'pred_stats', 'npy']))
+            pred_stats_file = os.path.join(self.save_dir, '.'.join(
+                [self.task_name, 'pred_stats', 'npy']))
             np.save(os.path.join(self.APP_DIR, pred_stats_file), self.pred_stats)
             if verbose:
                 print(f"Saved results to {pred_stats_file}")
@@ -239,8 +263,8 @@ class Application:
     def draw_dignosis_figure(self, verbose=True):
         assert self.pred_dict.keys(), "pred_dict not exists"
         # based on the task type, draw different things
-        diagnosis_figure_file = os.path.join('results', '.'.join(
-            [self.log_name, str(self.version), self.task_name, 'figure.jpeg']))
+        diagnosis_figure_file = os.path.join(
+            self.save_dir, '.'.join([self.task_name, 'figure.jpeg']))
         if self.task.task_type == 'regression':
             # draw scatter
             try:
@@ -262,9 +286,43 @@ class Application:
             print(f"Saved figure to {diagnosis_figure_file}")
         pass
 
+    def visualize(self, preprocess=True):
+        """ visualizing with PCA and t-SNE and heatmap for embeddings with label """
+        X, Y = self.get_data(preprocess=preprocess)
+        save_dir = os.path.join(self.APP_DIR,
+                                "visualizations")
+        if self.task.task_type == 'regression':
+            kwarg = {'label_numeric': True}
+        else:
+            kwarg = {}
+        # train
+        vis_heatmap(X['train'], save_path=os.path.join(
+                    save_dir, f"{self.version}_heatmap_train.jpeg"),
+                    xlabel='nodule', ylabel='features')
+        vis_pca(data=X['train'], label=Y['train'],
+                save_path=os.path.join(
+                    save_dir, f"{self.version}_{self.task_name}_pca_train.jpeg"),
+                label_name=self.task_name, **kwarg)
+        vis_tsne(data=X['train'], label=Y['train'],
+                 save_path=os.path.join(
+                     save_dir, f"{self.version}_{self.task_name}_pca_train.jpeg"),
+                 label_name=self.task_name, **kwarg)
+        # val
+        vis_heatmap(X['val'], save_path=os.path.join(
+                    save_dir, f"{self.version}_heatmap_val.jpeg"))
+        vis_pca(data=X['val'], label=Y['val'],
+                save_path=os.path.join(
+                    save_dir, f"{self.version}_{self.task_name}_pca_val.jpeg"),
+                label_name=self.task_name, **kwarg)
+        vis_tsne(data=X['val'], label=Y['val'],
+                 save_path=os.path.join(
+                     save_dir, f"{self.version}_{self.task_name}_pca_val.jpeg"),
+                 label_name=self.task_name, **kwarg)
+        pass
+
 
 class Embedding:
-
+    # TODO: reorder embeddings and save reordered embedding version
     LOG_DIR = '/labs/gevaertlab/users/yyhhli/code/vae/applications/logs'
 
     def __init__(self, log_name: str, version: int, split: str = 'train'):
@@ -290,15 +348,27 @@ class Embedding:
         self.embeddings['embedding'].append(list(embedding))
         pass
 
-    def save(self, verbose=False):
+    def save(self, reorder=True, verbose=True):
         print("saving embedding ...")
         if not os.path.exists(self.save_dir):
             os.mkdir(self.save_dir)
+        if reorder:
+            self.reorder_embeddings()
         with open(self.file_dir, 'w') as f:
             json.dump(self.embeddings, f)
         if verbose:
             print(
                 f"{len(self.embeddings['index'])} embeddings saved to {os.path.join(self.save_dir, self.file_name)}")
+        pass
+
+    def reorder_embeddings(self):
+        '''order then according to sorted(index)'''
+        order = get_order(self.embeddings['index'],
+                          ref_lst=sorted(self.embeddings['index']))
+        self.embeddings['index'] = reorder(self.embeddings['index'],
+                                           order)
+        self.embeddings['embedding'] = reorder(self.embeddings['embedding'],
+                                               order)
         pass
 
     def load(self):
@@ -319,16 +389,3 @@ class Embedding:
         if not self.saved:
             self.save()
         return np.array(self.embeddings['embedding'])
-
-
-# def debug():
-#     ap = Application(log_name='VAE32',
-#                      version=48,
-#                      task_name='malignancy',
-#                      base_model_name='VAE3D')
-#     ap.get_labels()
-#     print(volume)
-
-
-# if __name__ == '__main__':
-#     debug()

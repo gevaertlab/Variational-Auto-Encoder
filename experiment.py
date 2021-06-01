@@ -35,8 +35,7 @@ class VAEXperiment(pl.LightningModule):
         # the weight of KL loss calculated, should be adjustable
         M_N = self.params['batch_size'] / self.num_train_imgs
         self.params['kl_actual_ratio'] = M_N * self.model.beta
-        train_loss = self.model.loss_f
-        unction(*results,
+        train_loss = self.model.loss_function(*results,
                                               M_N=M_N,
                                               batch_idx=batch_idx)
 
@@ -82,13 +81,13 @@ class VAEXperiment(pl.LightningModule):
         vis3DTensor(test_input.data, save_dir=os.path.join(f"{self.logger.save_dir}{self.logger.name}/version_{self.logger.version}/media",
                                                            f"real_img_{self.logger.name}_{self.current_epoch}.png"))
         del test_input, recons  # , samples
-        
+
         # draw loss curves
         self.logger.draw_loss_curve()
         self.logger.draw_kl_recon_loss()
         self.logger.draw_multiple_loss_curves()
         pass
-        
+
     def configure_optimizers(self):
         optims = []
         scheds = []
@@ -103,7 +102,7 @@ class VAEXperiment(pl.LightningModule):
         if self.params['max_lr'] is not None:
             scheduler = optim.lr_scheduler.OneCycleLR(optims[0],
                                                       epochs=self.params['max_epochs'],
-                                                      steps_per_epoch=self.num_train_imgs//self.params['batch_size'],
+                                                      steps_per_epoch=self.num_train_imgs//self.params['batch_size'] // 2,
                                                       max_lr=self.params['max_lr'],
                                                       final_div_factor=self.params['final_div_factor'])
             lr_dict = {'scheduler': scheduler,
@@ -113,26 +112,26 @@ class VAEXperiment(pl.LightningModule):
         else:
             return optims
 
-    def train_dataloader(self):  # -> DataLoader
+    def train_dataloader(self, shuffle=True, drop_last=True):  # -> DataLoader
         # modified: using only LIDC dataset for simplicity
         train_ds = LIDCPatch32Dataset(
             root_dir=None, transform=sitk2tensor, split='train')
         self.num_train_imgs = len(train_ds)
         return DataLoader(train_ds,
                           batch_size=self.params['batch_size'],
-                          shuffle=True,
-                          drop_last=True,
+                          shuffle=shuffle,
+                          drop_last=drop_last,
                           num_workers=4,
                           pin_memory=True)
 
-    def val_dataloader(self):
+    def val_dataloader(self, shuffle=False, drop_last=True):
         val_ds = LIDCPatch32Dataset(
             root_dir=None, transform=sitk2tensor, split='val')
         self.num_val_imgs = len(val_ds)
         self.sample_dataloader = DataLoader(val_ds,
                                             batch_size=self.params['batch_size'],
-                                            shuffle=True,
-                                            drop_last=True,
+                                            shuffle=shuffle,
+                                            drop_last=drop_last,
                                             num_workers=4,
                                             pin_memory=True)
         return [self.sample_dataloader]

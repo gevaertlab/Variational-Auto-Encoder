@@ -3,7 +3,9 @@
 logs/
 applications/logs/
 applications/results/
+applications/visualizations/
 perceptual_network/results/
+
 
 ### Linux ###
 *~

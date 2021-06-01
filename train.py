@@ -50,7 +50,7 @@ if __name__ == '__main__':
 
     # callback
     callback = ModelCheckpoint(monitor='val_loss',  # if not specified, default save dir
-                               save_top_k=3,
+                               save_top_k=1,
                                mode='min')
 
     # trainer

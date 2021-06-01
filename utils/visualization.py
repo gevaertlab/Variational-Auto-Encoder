@@ -1,21 +1,28 @@
 ''' This file provides util functions to visualize various type of data '''
+import matplotlib
 import math
 import os
-from typing import Dict
+from typing import Dict, Union
 
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
 import SimpleITK as sitk
 import torchvision.utils as vutils
 from matplotlib.ticker import MultipleLocator, ScalarFormatter
 from mpl_toolkits import axisartist
 from mpl_toolkits.axes_grid1 import host_subplot
+from sklearn.decomposition import PCA
+from sklearn.manifold import TSNE
 from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
 from sklearn.utils.multiclass import unique_labels
+from .funcs import Timer
 
 plt.style.use('ggplot')
+plt.ioff()  # Turn off interactive mode
+matplotlib.use('Agg')
 
 
 def flatten_list(_2d_list):
@@ -252,3 +259,120 @@ def confusion_matrix_models(pred_dict, save_dir, classes=list(range(1, 6))):
         plt.close()
         print(f"Visualized at {save_dir}")
         pass
+
+
+def vis_pca(data: np.ndarray,
+            label: Union[None, np.ndarray, list],
+            save_path: str,
+            label_name='NA',
+            label_numeric=False):
+    """ 
+    TODO: some duplicated code with vis_tsne
+    """
+    pca = PCA(n_components=3)
+    pca_result = pca.fit_transform(data)
+    print(f"Explained variation per principal component: \
+          {pca.explained_variance_ratio_}")
+    plt.figure(figsize=(5, 5))
+    # case 1, no label
+    if label is None:
+        pca_result_df = pd.DataFrame(pca_result,
+                                     columns=[f"PC{str(i+1)}" for i in range(3)])
+        sns.scatterplot(x='PC1', y='PC2',
+                        data=pca_result_df,
+                        alpha=0.5)
+    else:
+        label = np.array(label).reshape(-1, 1)
+        pca_np = np.append(pca_result, label, axis=-1)
+        pca_result_df = pd.DataFrame(
+            pca_np, columns=[f"PC{str(i+1)}" for i in range(3)]+[label_name])
+        if label_numeric:
+            # case 2: numerical label
+            cmap = sns.cubehelix_palette(rot=-.2, as_cmap=True)
+            sns.scatterplot(
+                x="PC1", y="PC2",
+                hue=label_name,
+                palette=cmap,
+                data=pca_result_df,
+                size=label_name,
+                sizes=(1, 20),
+                alpha=0.5)
+        else:
+            # case 3: categorical label
+            sns.scatterplot(
+                x="PC1", y="PC2",
+                hue=label_name,
+                palette=sns.color_palette("hls", len(np.unique(label))),
+                data=pca_result_df,
+                legend="full",
+                alpha=0.5)
+    plt.savefig(save_path, dpi=200)
+    plt.close()
+    print(f"Visualized at {save_path}")
+    pass
+
+
+def vis_tsne(data: np.ndarray,
+             label: Union[None, np.ndarray, list],
+             save_path: str,
+             label_name='NA',
+             label_numeric=False):
+    timer = Timer()
+    timer()
+    tsne = TSNE(n_components=2, verbose=1, perplexity=40, n_iter=300)
+    tsne_results = tsne.fit_transform(data)
+    timer("t-SNE")
+    plt.figure(figsize=(5, 5))
+    # case 1, no label
+    if label is None:
+        tsne_result_df = pd.DataFrame(tsne_results,
+                                      columns=[f"tSNE{str(i+1)}" for i in range(2)])
+        sns.scatterplot(x='tSNE1', y='tSNE2',
+                        data=tsne_result_df,
+                        alpha=0.5)
+    else:
+        label = np.array(label).reshape(-1, 1)
+        pca_np = np.append(tsne_results, label, axis=-1)
+        tsne_result_df = pd.DataFrame(
+            pca_np, columns=[f"tSNE{str(i+1)}" for i in range(2)]+[label_name])
+        if label_numeric:
+            # case 2: numerical label
+            cmap = sns.cubehelix_palette(rot=-.2, as_cmap=True)
+            sns.scatterplot(
+                x="tSNE1", y="tSNE2",
+                hue=label_name,
+                palette=cmap,
+                data=tsne_result_df,
+                size=label_name,
+                sizes=(1, 20),
+                alpha=0.5)
+        else:
+            # case 3: categorical label
+            sns.scatterplot(
+                x="tSNE1", y="tSNE2",
+                hue=label_name,
+                palette=sns.color_palette("hls", len(np.unique(label))),
+                data=tsne_result_df,
+                legend="full",
+                alpha=0.5)
+    plt.savefig(save_path, dpi=200)
+    plt.close()
+    print(f"Visualized at {save_path}")
+    pass
+
+
+def vis_heatmap(data: np.ndarray,
+                xlabel: str = None,
+                ylabel: str = None,
+                save_path: str = '/home/yyhhli/temp.jpeg'):
+    plt.figure(figsize=(5, 5))
+    sns.heatmap(data, cmap='mako')
+    if xlabel:
+        plt.xlabel(xlabel)
+    if ylabel:
+        plt.ylabel(ylabel)
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=200)
+    plt.close()
+    print(f"Visualized at {save_path}")
+    pass
