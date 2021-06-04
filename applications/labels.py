@@ -5,7 +5,7 @@ import numpy as np
 import pylidc as dc
 from tqdm import tqdm
 from multiprocessing import Pool, cpu_count
-from utils.funcs import reorder, get_order
+from utils.funcs import reorder, get_order, Timer
 
 
 class Label:
@@ -18,6 +18,7 @@ class Label:
         self.save_path = self._get_save_path()
         self.labels = {}
         self.data_names = {}
+        self.timer = Timer()
 
     def _get_save_path(self):
         save_path = os.path.join(self.log_dir,
@@ -40,9 +41,12 @@ class Label:
         raise NotImplementedError
 
     def match_labels(self, data_names, n_jobs=cpu_count()):  # pool map
-        print("matching labels ...")
+        self.timer()
+        print("start matching labels ...")
         pool = Pool(processes=n_jobs)
-        return pool.map(self.match_label, data_names)
+        result = pool.map(self.match_label, data_names)
+        self.timer("matching labels")
+        return result
 
     def save_labels(self):
         """ save matched label as npy file """
@@ -64,20 +68,40 @@ class Label:
         1. load
         2. reorder
         3. match
+        return: Y = {'train': ..., 'val': ...}
+        the returned Y should have data_names 
+        exactly matching the query data_names
         """
-        # if stored, directly return it
-        if split not in self.labels.keys():
-            # try loading
+        if split not in self.labels:
+            # loading
             if os.path.exists(self.save_path):
                 self.load_labels()
-                # examine the matching
-                if self.data_names[split] != data_names:
-                    reordered_labels = self.reorder_labels(data_names, split, replace=False)
-                    return reordered_labels
-            # else: matching
+            # if can't: matching
+            # NOTE: func <match_labels> will output exactly order of data_names
             else:
                 self.labels[split] = self.match_labels(data_names)
-            self.data_names[split] = data_names
+                self.data_names[split] = data_names
+        # at this point, self.label should be initialized
+        # see if we need reorder
+        if self.data_names[split] != data_names:
+            # NOTE: if data_names not match, and query data_names is shorter,
+            # which means we can reorder to fix it, else, just re-matching
+            if len(data_names) <= len(self.data_names[split]):
+                reordered_labels = self.reorder_labels(data_names,
+                                                       split,
+                                                       replace=False)
+                # assertion
+                assert len(data_names) == len(reordered_labels), \
+                    "label matching failed."
+                return reordered_labels
+            else:
+                self.labels[split] = self.match_labels(data_names)
+                self.data_names[split] = data_names
+        # assertion
+        assert len(data_names) == len(self.labels[split]) and \
+            self.data_names[split] == data_names, \
+            "label matching failed."
+
         return self.labels[split]
 
     def reorder_labels(self, data_names: List, split='train', replace=True):

@@ -11,7 +11,7 @@ if __name__ == '__main__':
                         default='VAE3D32', type=str,
                         help="Name of the trained model/directory of saved log")
     parser.add_argument('--version',
-                        default=70, type=int,
+                        default=72, type=int,
                         help="Version number of the saved log")
     parser.add_argument('--tasks', nargs='+', type=str,
                         default='all',
@@ -19,6 +19,9 @@ if __name__ == '__main__':
     parser.add_argument('--models', nargs='+', type=str,
                         default='all',
                         help="name of models to run")
+    parser.add_argument('--command', nargs='+', type=str,
+                        default='both',
+                        help='<task_predict> or <visualize> or <both>')
     args = parser.parse_args()
 
     if args.tasks == 'all':
@@ -29,8 +32,8 @@ if __name__ == '__main__':
 
     for task_name in task_names:
         app = Application(args.log_name, args.version, task_name=task_name)
-        # TODO: implement flexible model selection
-        app.taskPrediction(models=args.models)
-        app.saveResults()
-        app.draw_dignosis_figure()
+        if 'both' or 'task_predict' in parser.command:
+            app.taskPrediction(models=args.models)
+            app.saveResults()
+            app.draw_dignosis_figure()
         app.visualize()

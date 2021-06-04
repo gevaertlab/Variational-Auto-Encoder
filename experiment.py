@@ -5,7 +5,8 @@ import pytorch_lightning as pl
 from torch import optim
 from torch.utils.data import DataLoader
 
-from dataset import LIDCPatch32Dataset, sitk2tensor
+from datasets.patch_lidc import LIDCPatch32Dataset
+from datasets.utils import sitk2tensor
 from models._type import Tensor
 from models.vae_base import VAESkeleton
 from utils.visualization import vis3DTensor

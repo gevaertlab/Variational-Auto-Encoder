@@ -166,6 +166,7 @@ class Application:
 
         Y = {'train': self.label.get_labels(data_names['train'], split='train'),
              'val': self.label.get_labels(data_names['val'], split='val')}
+
         if preprocess:
             # preprocess X and Y
             X, Y = self.task.transform(X, Y)
@@ -179,7 +180,8 @@ class Application:
         Returns:
             dict: results (metrics) of predictions
         """
-
+        border = "-----"
+        print(f"{border}Prediction for task {self.task_name}{border}")
         X, Y = self.get_data()
 
         # TRAIN + PREDICT

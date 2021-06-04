@@ -59,15 +59,28 @@ class Timer:
 def get_order(lst, ref_lst):
     """ 
     get order of list according to ref_lst 
-    e.g. 
+    e.g. 1
     lst = ['a', 'c', 'b', 'd']
     ref_lst = ['a', 'b', 'c', 'd']
     return = [0, 2, 1, 3]
+
+    e.g. 2
+    lst = ['a', 'c', 'd']
+    ref_lst = ['a', 'b', 'c', 'd']
+    return = [0, 2, 3]
+
+    e.g. 3
+    lst = ['a', 'c', 'b', 'd']
+    ref_lst = ['b', 'c', 'd']
+    return = [0, 2, 1, 3] # don't need to give order for 
     """
-    ref_order = {ref:i for (i, ref) in enumerate(ref_lst)}
-    return [ref_order[ele] for ele in lst]
+    ref_order = {ref: i for (i, ref) in enumerate(ref_lst)}
+    # NOTE: give -1 to the unknown order elements,
+    # and in reorder function, those will be excluded
+    return [ref_order[ele] if ele in ref_order else -1 for ele in lst]
 
 
 def reorder(lst, order):
     """ reorder the array according to the order """
-    return [ele for o, ele in sorted(zip(order, lst))]
+    # NOTE: exclude elements with order = -1
+    return [ele for o, ele in sorted(zip(order, lst)) if o >= 0]
