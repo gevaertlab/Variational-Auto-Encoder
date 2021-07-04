@@ -1,7 +1,10 @@
 
+from functools import singledispatch
 import SimpleITK as sitk
 import os
 import os.path as osp
+
+import numpy as np
 
 
 def _load_img(img_path, type):
@@ -30,7 +33,13 @@ def load_dcm(img_path):
     return _load_img(img_path, 'dcm')
 
 
+@singledispatch
 def save_as_nrrd(img, save_path, verbose=0):
+    raise NotImplementedError
+
+
+@save_as_nrrd.register(sitk.Image)
+def _(img: sitk.Image, save_path: str, verbose=0):
     # check directory
     save_dir = osp.dirname(save_path)
     if not osp.exists(save_dir):
@@ -45,3 +54,10 @@ def save_as_nrrd(img, save_path, verbose=0):
     elif verbose:
         print(f'file {save_path} already exists.')
     return
+
+
+@save_as_nrrd.register(np.ndarray)
+def _(img: np.ndarray, save_path: str, verbose=0):
+    img = sitk.GetImageFromArray(img)
+    save_as_nrrd(img, save_path, verbose)
+    pass

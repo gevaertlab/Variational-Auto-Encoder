@@ -18,6 +18,12 @@ def saveConfig(path, config_file):
         yaml.dump(config_file, f)
 
 
+def mkdir_safe(dir: str):
+    if not os.path.exists(dir):
+        os.mkdir(dir)
+    pass
+
+
 class Timer:
 
     def __init__(self):
