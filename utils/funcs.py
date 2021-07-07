@@ -3,6 +3,7 @@
 import os
 import yaml
 from time import time
+from tabulate import tabulate
 
 
 def getVersion(path):
@@ -90,3 +91,12 @@ def reorder(lst, order):
     """ reorder the array according to the order """
     # NOTE: exclude elements with order = -1
     return [ele for o, ele in sorted(zip(order, lst)) if o >= 0]
+
+
+def print_dict(dictionary, title=None):
+    list_of_list = [[k, v] for k, v in dictionary.items()]
+    if title:
+        print(tabulate(list_of_list, headers=title))
+    else:
+        print(tabulate(list_of_list))
+    pass

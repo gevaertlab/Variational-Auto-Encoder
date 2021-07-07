@@ -4,7 +4,7 @@ extract patches:
 '''
 import os
 import sys
-from typing import Tuple
+from typing import Tuple, Union
 
 import numpy as np
 import SimpleITK as sitk
@@ -60,7 +60,9 @@ def _convert_point(center_point: Tuple,
     return new_center_point
 
 
-def convert_spacing(img, spacing=(1, 1, 1), center_point=None):
+def convert_spacing(img,
+                    spacing=(1, 1, 1),
+                    center_point=None):
     resample = sitk.ResampleImageFilter()
     resample.SetInterpolator(sitk.sitkLinear)
     resample.SetOutputDirection(img.GetDirection())
@@ -77,6 +79,7 @@ def convert_spacing(img, spacing=(1, 1, 1), center_point=None):
     new_size = [int(s) for s in new_size]
     resample.SetSize(new_size)
     new_img = resample.Execute(img)
+
     # calculate center_point if there is input
     if not center_point is None:
         if isinstance(center_point, tuple):
@@ -89,7 +92,18 @@ def convert_spacing(img, spacing=(1, 1, 1), center_point=None):
     return new_img
 
 
-def preprocess(img, center_point, spacing=(1, 1, 1)):
+def transpose(img: np.ndarray,
+              transpose_axis: Union[None, Tuple] = None):
+    if not transpose_axis:
+        return img
+    else:
+        return np.transpose(img, axes=transpose_axis)
+
+
+def preprocess(img,
+               center_point,
+               spacing=(1, 1, 1),
+               transpose_axis=None):
     '''
     @param: img: sitk 3D CT image
     @param: center_point: (x,y,z) tuple of PIXEL POINT of center of the nodule i.e. img[x, y, z] = nodule
@@ -98,10 +112,15 @@ def preprocess(img, center_point, spacing=(1, 1, 1)):
     2. Convert spacing to (1, 1, 1)
     3. Winsorize to [-1024, 3071] and normalize to [0, 1]
     return: np.array of uniformly_spaced_scaled_img
+    NOTE: will return channel-last format image, 
+    so may need potential conversion -> of image
     '''
     uniformly_spaced_img, new_center_point = convert_spacing(img,
                                                              spacing,
                                                              center_point)
+    new_center_point = tuple(new_center_point)  # NOTE: convert to tuple
     uniformly_spaced_scaled_img = winsorize_scale(
         uniformly_spaced_img)
-    return sitk.GetArrayFromImage(uniformly_spaced_scaled_img), new_center_point
+    npimg = sitk.GetArrayFromImage(uniformly_spaced_scaled_img)
+    npimg = transpose(npimg, transpose_axis)
+    return npimg, new_center_point

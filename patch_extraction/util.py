@@ -7,8 +7,8 @@ import math
 
 def rotate_coord(origin, point, angle):
     """
-    Rotate a point counterclockwise by a given angle around a given origin.
-
+    Rotate a point counterclockwise by a given angle 
+    around a given origin.
     The angle should be given in degrees.
     """
     rad = math.radians(angle)
@@ -94,7 +94,7 @@ def resample(image, transform):
 
 def get_center_np(img):
     """ numpy image """
-    return [i // 2 for i in img.shape]
+    return [i / 2 for i in img.shape]
 
 
 def get_center(img):

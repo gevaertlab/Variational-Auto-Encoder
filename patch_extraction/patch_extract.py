@@ -22,14 +22,22 @@ from .preprocess_funcs import preprocess
 
 class PatchExtract:
 
-    def __init__(self, patch_size, augmentation_params=None):
+    def __init__(self,
+                 patch_size,
+                 ds_params=None,
+                 augmentation_params=None):
         self.patch_size = patch_size
+        self.ds_params = ds_params
         if augmentation_params:
             self.augmentation = Augmentation(augmentation_params)
         else:
             self.augmentation = None
+        pass
 
-    def extract_img(self, img, center_point, save_path):
+    def extract_img(self,
+                    img,
+                    center_point,
+                    save_path):
         """extract patch from a single image
         1. preprocess
         2. augment
@@ -41,7 +49,10 @@ class PatchExtract:
             save_path ([str]): [path to save this patch]
         """
         # preprocesing
-        img, center_point = preprocess(img, center_point)
+        img, center_point = preprocess(img=img,
+                                       center_point=center_point,
+                                       spacing=self.ds_params['spacing'],
+                                       transpose_axis=self.ds_params['transpose_axis'])
         # augment
         if self.augmentation:
             aug_gen = self.augmentation.augment_generator(img, center_point)
@@ -74,13 +85,12 @@ class PatchExtract:
         else:
             return load_func(img_path)
 
-    def extract_ds(self, dataset_params, save_dir, multi=False):
-        if 'load_func' in dataset_params:
-            load_func = dataset_params['load_func']
-        else:
-            load_func = None
+    def extract_ds(self,
+                   save_dir,
+                   multi=False):
+        load_func = self.ds_params['load_func']
         if not multi:
-            for file_name, (img_path, center_point) in tqdm(dataset_params['data_dict'].items()):
+            for file_name, (img_path, center_point) in tqdm(self.ds_params['data_dict'].items()):
                 self.load_extract(img_path=img_path,
                                   load_func=load_func,
                                   center_point=tuple(center_point),
@@ -94,7 +104,7 @@ class PatchExtract:
                  file_name+'.nrrd',
                  save_dir) for
                 file_name, (img_path, center_point)
-                in dataset_params['data_dict'].items()
+                in self.ds_params['data_dict'].items()
             ]
             with Pool(cpu_count()) as p:
                 p.starmap(self.load_extract,

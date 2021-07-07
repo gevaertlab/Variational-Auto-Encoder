@@ -19,6 +19,7 @@ from sklearn.manifold import TSNE
 from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
 from sklearn.utils.multiclass import unique_labels
 from .funcs import Timer
+import cv2
 
 plt.style.use('ggplot')
 plt.ioff()  # Turn off interactive mode
@@ -38,14 +39,38 @@ def flatten_list(_2d_list):
     return flat_list
 
 
-def vis_img(img_array, rng=(0, 1), vis_path='/home/yyhhli/code/image data/temp_img.png'):
-    
+def vis_img(img_array,
+            rng=(0, 1),
+            vis_path='/home/yyhhli/code/image data/temp_img.png'):
+
     plt.imsave(vis_path, img_array.astype(np.float), vmin=rng[0], vmax=rng[1])
     plt.close()
     pass
 
 
-def vis3d(img, axis=0, slice_num=None, vis_path='/home/yyhhli/code/image data/temp_img.png'):
+def vis_img_with_point(img: np.ndarray,
+                       point_coord_dict: dict,
+                       vis_path: str):
+    """visualize image with points on the image
+
+    Args:
+        img ([np.ndarray]): [image to visualize]
+        point_coord_dict ([dict]): e.g. {"name(label)": (x, y)}
+        vis_path ([str]): [path to save image]
+    """
+    fig, ax = plt.subplots()
+    ax.imshow(img)
+    for key, value in point_coord_dict.items():
+        ax.plot(value)
+        ax.annotate(key, value)
+    plt.savefig(vis_path, dpi=300)
+    pass
+
+
+def vis3d(img,
+          axis=2,
+          slice_num=None,
+          vis_path='/home/yyhhli/code/image data/temp_img.png'):
     if slice_num is None:
         slice_num = int(img.shape[axis]/2)
     indices = {0: None, 1: None, 2: None}
@@ -77,9 +102,9 @@ def vis_sitk(img, axis=2, slice_num=None, vis_path='/home/yyhhli/code/image data
     axis2axis = {0: 1, 1: 2, 2: 0}
     np_img = sitk.GetArrayFromImage(img)
     new_axis = axis2axis[axis]
-    vis3d(np_img, 
-          axis=new_axis, 
-          slice_num=slice_num, 
+    vis3d(np_img,
+          axis=new_axis,
+          slice_num=slice_num,
           vis_path=vis_path)
 
 

@@ -24,7 +24,7 @@ def _(img: sitk.Image,
         size (tuple, optional): [tuple]. Size of the patch in pixels. Defaults to (32, 32, 32).
 
     Returns:
-        [numpy array (3D)]: patch cropped
+        [sitk.Image]: patch cropped
     """
     start_pos = tuple(int(pos - diameter / 2) for pos,
                       diameter in zip(center_point, size))  # NOTE: modified

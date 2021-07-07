@@ -12,10 +12,9 @@ from experiment import VAEXperiment
 from models import VAE_MODELS
 from utils.custom_loggers import VAELogger  # logger
 import os
+from configs.config_vars import BASE_DIR
 
 if __name__ == '__main__':
-
-    BASE_DIR = "/labs/gevaertlab/users/yyhhli/code/vae"
 
     parser = argparse.ArgumentParser(description='Train VAE models')
     parser.add_argument('--config',  '-c',

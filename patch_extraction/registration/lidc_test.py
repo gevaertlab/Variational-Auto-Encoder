@@ -1,3 +1,4 @@
+""" smaller lidc dataset """
 
 import os
 from multiprocessing import Manager, Pool, Process
@@ -9,18 +10,19 @@ from utils.io import load_dcm
 from .register import Register
 
 
-class LidcReg(Register):
+class LidcTestReg(Register):
 
     def __init__(self,
-                 name='LIDC',
+                 name='LIDC_test',
                  root_path='/labs/gevaertlab/data/lung cancer/TCIA_LIDC',
-                 info_dict_save_path='/labs/gevaertlab/data/lung cancer/TCIA_LIDC/info_dict.json'):
+                 info_dict_save_path='/labs/gevaertlab/data/lung cancer/TCIA_LIDC/info_test_dict.json'):
         super().__init__(name, root_path, info_dict_save_path=info_dict_save_path)
         self.info_dict['transpose_axis'] = (1, 2, 0)
+        # channel first to channel last
         pass
 
     def register(self, multi=False):
-        scan_list = list(pl.query(pl.Scan))
+        scan_list = list(pl.query(pl.Scan))[:20]
         if self.register_check(scan_list):
             pass
         else:
@@ -28,7 +30,7 @@ class LidcReg(Register):
                 for scan in tqdm(scan_list):
                     self.get_lidc_info(scan)
             else:
-                # HACK: cannot be achieved.
+                # HACK: not functioning
                 pool = Pool(processes=os.cpu_count())
                 data_list = pool.starmap(self.get_lidc_info,
                                          [(s, True) for s in scan_list])

@@ -18,7 +18,7 @@ class Augmentation:
         """
         self.params = params
         self.axis = list(range(num_axis))
-        self.axes_lst = itertools.combinations(self.axis, 2)
+        self.axes_lst = list(itertools.combinations(self.axis, 2))
         pass
 
     def shift(self, img, center_point, params, random_seed=None):
@@ -70,7 +70,16 @@ class Augmentation:
         angle = random.randint(params['range'][0],
                                params['range'][1])
 
-        return (img, rotate_3d_coord(origin, center_point, angle, axis_plane))
+        img_rotated = ndimage.rotate(input=img,
+                                     angle=angle,
+                                     axes=axis_plane,
+                                     reshape=False)  # not reshape to find point
+        rotated_center_point = rotate_3d_coord(origin,
+                                               center_point,
+                                               angle,
+                                               axis_plane)
+
+        return (img_rotated, rotated_center_point)
 
     def augment_generator(self, img, center_point, random_seed=None):
         """

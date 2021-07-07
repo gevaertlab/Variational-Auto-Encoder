@@ -1,4 +1,5 @@
-""" CT dataset for LIDC """
+""" CT dataset for LIDC, largely replaced by pylidc module """
+
 from typing import Union
 import numpy as np
 from .ct_ds import CTDataSet
@@ -11,6 +12,7 @@ import SimpleITK as sitk
 import pandas as pd
 import pydicom
 import pylidc as pl
+from configs.config_vars import DS_ROOT_DIR
 
 
 class LIDCDataSet(CTDataSet):
@@ -22,7 +24,7 @@ class LIDCDataSet(CTDataSet):
 
     def __init__(self, root_dir: str = None, name='LIDC'):
         if root_dir is None:
-            root_dir = '/labs/gevaertlab/data/lung cancer/TCIA_LIDC'
+            root_dir = os.path.join(DS_ROOT_DIR, "TCIA_LIDC")
         super().__init__(root_dir=root_dir, name=name)
         self.__ct_dir_tree__()
         self.scans = pl.query(pl.Scan)
