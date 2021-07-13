@@ -6,6 +6,8 @@ model_params:
   hidden_dims: [4, 16, 32, 64] # only four layer because the size of the patch is changed
 
 exp_params:
+  dataset: LIDCPatch32Dataset
+  root_dir: 
   LR: 0.0002 # testing
   batch_size: 36 # better to have a square number. Why?
   max_lr: 0.05

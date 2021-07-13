@@ -13,8 +13,8 @@ def param_parser():
     parser = argparse.ArgumentParser(description='preprocess datasets')
     parser.add_argument('--register',  '-r',
                         dest="register",
-                        help='register name of the dataset, in registration folder',
-                        default='LidcTestReg')
+                        help='register name of the dataset, in registration folder, REGISTERS',
+                        default='LidcReg')
     parser.add_argument('--aug_param',  '-a',
                         dest="aug_param",
                         help='augmentation parameters (filename) for '
@@ -23,11 +23,11 @@ def param_parser():
     parser.add_argument('--save_dir',  '-S',
                         dest="save_dir",
                         help="save directory of converted patches",
-                        default='TCIA_LIDC/LIDCtest-patch-32_aug')
+                        default='TCIA_LIDC/LIDC-patch-32_aug')
     parser.add_argument('--vis_dir',  '-V',
                         dest="vis_dir",
                         help="visualization directory of converted patches",
-                        default='TCIA_LIDC/LIDCtest-visualization-32_aug')
+                        default='TCIA_LIDC/LIDC-visualization-32_aug')
     parser.add_argument('--not_vis',  '-v',
                         dest="visualize",
                         help="whether visualize each patch")

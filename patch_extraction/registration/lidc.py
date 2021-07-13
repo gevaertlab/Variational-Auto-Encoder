@@ -1,3 +1,4 @@
+""" regular lidc dataset """
 
 import os
 from multiprocessing import Manager, Pool, Process
@@ -15,8 +16,11 @@ class LidcReg(Register):
                  name='LIDC',
                  root_path='/labs/gevaertlab/data/lung cancer/TCIA_LIDC',
                  info_dict_save_path='/labs/gevaertlab/data/lung cancer/TCIA_LIDC/info_dict.json'):
-        super().__init__(name, root_path, info_dict_save_path=info_dict_save_path)
+        super().__init__(name,
+                         root_path,
+                         info_dict_save_path=info_dict_save_path)
         self.info_dict['transpose_axis'] = (1, 2, 0)
+        # channel first to channel last
         pass
 
     def register(self, multi=False):
@@ -26,9 +30,11 @@ class LidcReg(Register):
         else:
             if not multi:
                 for scan in tqdm(scan_list):
-                    self.get_lidc_info(scan)
+                    for file_name, img_path, center_point in self.get_lidc_info(scan):
+                        self.info_dict['data_dict'][file_name] = (
+                            img_path, center_point)
             else:
-                # HACK: cannot be achieved.
+                # HACK: not functioning
                 pool = Pool(processes=os.cpu_count())
                 data_list = pool.starmap(self.get_lidc_info,
                                          [(s, True) for s in scan_list])
@@ -45,12 +51,7 @@ class LidcReg(Register):
             x, y, z = nodule.centroid
             center_point = (x, y, z)
             img_path = scan.get_path_to_dicom_files()
-            if multi:
-                return (file_name, img_path, center_point)
-            else:
-                self.info_dict['data_dict'][file_name] = (
-                    img_path, center_point)
-                return None
+            yield (file_name, img_path, center_point)
 
     def load_func(self, path):
         return load_dcm(path)

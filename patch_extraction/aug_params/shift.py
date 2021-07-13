@@ -2,7 +2,7 @@
 augmentation_params = [
     ([
         ('shift',
-         {'range': (-5, 5)})
+         {'range': (-12, 12)})
     ],
         5)
 ]

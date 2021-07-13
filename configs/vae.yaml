@@ -2,6 +2,7 @@ model_params:
   name: "VAE3D"
   in_channels: 1
   latent_dim: 1024
+  hidden_dims: [4, 16, 32, 64]
   beta: 1
 
 exp_params:
@@ -12,8 +13,6 @@ exp_params:
   final_div_factor: 10000
 
 trainer_params:
-  # gpus: 1 # cann't change for now
-  # max_nb_epochs: 30 # deprecated
   max_epochs: 30
 
 logging_params:

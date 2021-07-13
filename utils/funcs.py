@@ -100,3 +100,48 @@ def print_dict(dictionary, title=None):
     else:
         print(tabulate(list_of_list))
     pass
+
+
+def iterate_nested_dict(nested_dictionary,
+                        function,
+                        keychain=[]):
+    for key, value in nested_dictionary.items():
+        if type(value) is dict:
+            iterate_nested_dict(value,
+                                function,
+                                keychain=keychain+[key])
+        else:
+            function(nested_dictionary,
+                     keychain+[key],
+                     value)
+
+
+def check_dict(nested_dict, keychain):
+    """
+    check if a key, value exists in the dictionary
+    return bool
+    """
+    try:
+        value = access_dict(nested_dict, keychain)
+        return True
+    except KeyError:
+        return False
+
+
+def edit_dict_value(nested_dict, keychain, value):
+    for i in range(len(keychain)):
+        if not check_dict(nested_dict, keychain[:i+1]):
+            d = access_dict(nested_dict, keychain[:i])
+            d[keychain[i]] = {}
+    d = access_dict(nested_dict, keychain[:-1])
+    d[keychain[-1]] = value
+    pass
+
+
+def access_dict(nested_dict, keychain):
+    if len(keychain) == 0:
+        return nested_dict
+    elif len(keychain) == 1:
+        return nested_dict[keychain[0]]
+    elif len(keychain) > 1:
+        return access_dict(nested_dict[keychain[0]], keychain[1:])

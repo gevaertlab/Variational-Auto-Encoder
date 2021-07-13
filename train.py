@@ -1,34 +1,19 @@
 """ This file is implements the pytorch lightning module for 3D VAE """
-import argparse
 
 import numpy as np
 import torch
 import torch.backends.cudnn as cudnn
-import yaml
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 
+from configs.parse_configs import parse_config
 from experiment import VAEXperiment
 from models import VAE_MODELS
 from utils.custom_loggers import VAELogger  # logger
-import os
-from configs.config_vars import BASE_DIR
 
 if __name__ == '__main__':
 
-    parser = argparse.ArgumentParser(description='Train VAE models')
-    parser.add_argument('--config',  '-c',
-                        dest="filename",
-                        metavar='FILE',
-                        help='config file name in /configs folder',
-                        default='vae32_debug')
-
-    args = parser.parse_args()
-    file_path = os.path.join(BASE_DIR, 'configs', args.filename + '.yaml')
-    with open(file_path, 'r') as file:
-        config = yaml.safe_load(file)
-
-    config['file_name'] = os.path.basename(file_path)
+    config = parse_config()
 
     vae_logger = VAELogger(
         save_dir=config['logging_params']['save_dir'],
