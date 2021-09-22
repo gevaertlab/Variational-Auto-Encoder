@@ -2,19 +2,10 @@
 ''' A task consist of a name, task type (classification or regression), and a logic to map Xs to Ys '''
 
 
-# TODO: inplement label class and then task class
 
 
-
-
-from typing import List, Dict
-import pandas as pd
-import os
 import numpy as np
 import pylidc as dc
-from tqdm import tqdm
-from multiprocessing import Pool, cpu_count
-from utils.funcs import reorder, get_order
 class TaskBase:
 
     SUPPORTED_TASKS_TYPES = ['classification', 'regression']
@@ -137,13 +128,3 @@ class TaskSubtlety(TaskBase):
 
     def __init__(self, name: str = 'subtlety', task_type: str = 'classification'):
         super().__init__(name=name, task_type=task_type)
-
-
-# def debug():
-#     tv = TaskVolume()
-#     tv.get_labels()
-#     print(volume)
-
-
-# if __name__ == '__main__':
-#     debug()

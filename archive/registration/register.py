@@ -1,6 +1,7 @@
 """ 
 registering datasets here, 
 provide function that can return a list of dataset images, center_point coord and file name
+Deprecated
 """
 import json
 import os
@@ -81,10 +82,9 @@ class Register:
     def load_func(self):
         raise NotImplementedError
 
-    def print_info(self):
+    def __str(self):
         content = self.info_dict.copy()
         # change data_dict and load_func item
         content['data_dict'] = f"{len(content['data_dict'])} patches"
         content['load_func'] = content['load_func'].__name__
-        print_dict(content, title=['name', 'value'])
-        pass
+        return print_dict(content, title=['name', 'value'])

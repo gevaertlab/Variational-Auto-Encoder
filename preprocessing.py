@@ -1,4 +1,4 @@
-""" 
+"""
 call preprocess module 
 """
 
@@ -7,14 +7,15 @@ from patch_extraction import registration, aug_params
 import argparse
 from configs.config_vars import DS_ROOT_DIR
 import os.path as osp
+from datasets import CT_DATASETS
 
 
 def param_parser():
     parser = argparse.ArgumentParser(description='preprocess datasets')
-    parser.add_argument('--register',  '-r',
-                        dest="register",
-                        help='register name of the dataset, in registration folder, REGISTERS',
-                        default='LidcReg')
+    parser.add_argument('--dataset',  '-r',
+                        dest="dataset",
+                        help='name of the dataset, defined in CT_DATASETS',
+                        default='LIDCDataset')  # HACK: should be deprecated
     parser.add_argument('--aug_param',  '-a',
                         dest="aug_param",
                         help='augmentation parameters (filename) for '
@@ -28,16 +29,19 @@ def param_parser():
                         dest="vis_dir",
                         help="visualization directory of converted patches",
                         default='TCIA_LIDC/LIDC-visualization-32_aug')
-    parser.add_argument('--not_vis',  '-v',
-                        dest="visualize",
-                        help="whether visualize each patch")
     parser.add_argument('--size',  '-s',
                         dest="size",
                         help="size of the patches",
                         default='32')
-    parser.add_argument('--not_multi',  '-M',
-                        dest="not_multi",
-                        help="do not use multiprocessing")
+    parser.add_argument('--multi',  '-M',
+                        dest="multi",
+                        action='store_true',
+                        help="whether to use multiprocessing")
+    parser.add_argument('--debug',
+                        dest="debug",
+                        action='store_true',
+                        help="debug flag for preprocessing, "
+                             "will output examples of extracted patches for debugging")
     args = parser.parse_args()
     args.size = tuple([int(args.size)] * 3)
     if not args.save_dir.startswith('/'):
@@ -50,19 +54,22 @@ def param_parser():
 if __name__ == "__main__":
     args = param_parser()
     # dataset registration
-    ds_register = getattr(registration, args.register)()
-    ds_register.register()
-    ds_register.print_info()
-    dataset_params = ds_register.info_dict
+    ds = CT_DATASETS[args.dataset](
+        params={"save_path": "/labs/gevaertlab/data/lung cancer/TCIA_LIDC/lidc_info_dict.json"})
+    # ds_register = getattr(registration, "LidcReg")()
+    # ds_register.register()
+    # dataset_params = ds_register.info_dict
+    ds_params = ds.generate_ds_params()
     # augmentation parameters
     aug_param = getattr(aug_params, args.aug_param).augmentation_params
     # extract patches
     patch_extract = PatchExtract(patch_size=args.size,
-                                 ds_params=dataset_params,
-                                 augmentation_params=aug_param)
-    patch_extract.extract_ds(save_dir=args.save_dir,
-                             multi=(not args.not_multi))
+                                 ds_params=ds_params,
+                                 augmentation_params=aug_param,
+                                 debug=args.debug)
+    patch_extract.load_extract_ds(save_dir=args.save_dir,
+                                  multi=args.multi)
     # visualization
-    if not args.not_vis:
+    if args.debug:
         patch_extract.vis_ds(dataset_dir=args.save_dir,
                              vis_dir=args.vis_dir)

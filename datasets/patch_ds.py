@@ -1,4 +1,5 @@
 """ patch dataset base """
+import numpy as np
 from torch.utils.data import ConcatDataset, Dataset
 import SimpleITK as sitk
 import os
@@ -26,7 +27,7 @@ class PatchDataset(Dataset):
         super(PatchDataset, self).__init__()
         self.root_dir = root_dir
         self.transform = transform
-        # the data list of the dataset object
+        # set to be relative path to patches from self.root_dir
         self.patches = []
         # the split of the dataset object can only be set through
         # set_split function, initialize self.images
@@ -56,7 +57,7 @@ class PatchDataset(Dataset):
                 idx['test'] = train_val_test_split(len(patches_list),
                                                    ratio=0.1,
                                                    random_state=9001)
-            self.patches = patches_list[idx[split]]
+            self.patches = self._list_index(patches_list, idx[split])
         self._split = split
         return split
 
@@ -75,3 +76,8 @@ class PatchDataset(Dataset):
         if self.transform is not None:
             sample = self.transform(sample)
         return sample['image'], sample['image_name']  # debug modified
+
+    @staticmethod
+    def _list_index(lst, idx_lst):
+        sorted_idx = sorted(idx_lst)
+        return list(np.array(lst)[sorted_idx])

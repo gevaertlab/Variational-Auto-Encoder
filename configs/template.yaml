@@ -5,7 +5,8 @@ model_params:
   # used to initialize model instance
 
   name: required 
-    # e.g. "VAE3D", used to call the correct model instance
+    # e.g. "VAE3D", used to call the correct model instance,
+    # should be registered in models.__init__.py
   in_channels: required
     # e.g. 1, if black and white image, then 1, if RGB, then 3
   latent_dim: required
@@ -28,7 +29,8 @@ exp_params:
   # parameters for experiment (pytorch_lightning module)
 
   dataset: optional LIDCPatch32Dataset
-    # dataset that the model will load and train on
+    # dataset that the model will load and train on, should be 
+    # registered in dataset.__init__.py
   root_dir: optional None
     # root_dir of the dataset, sometimes the dataset object will automatically set that
   LR: required 
@@ -57,6 +59,8 @@ logging_params:
     # name of the folder of logging results
   visualize_interval: optional 50 
     # the interval for outputing visualzation images
+    # NOTE: has to be larger than "check_val_every_n_epoch"
+    # best to be multiplications of it.
   manual_seed: optional 9001
 
 file_name: optional

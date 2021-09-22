@@ -14,7 +14,6 @@ class LNDBDataSet(CTDataSet):
     '''
     lndb = LNDB()
     ct = lndb.loadCT(306)
-    TODO: modify to comply with ct_ds
     '''
 
     def __init__(self, root_dir: str = None, name='LNDB_train'):

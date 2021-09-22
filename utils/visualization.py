@@ -294,7 +294,7 @@ def vis_pca(data: np.ndarray,
             label_name='NA',
             label_numeric=False):
     """ 
-    TODO: some duplicated code with vis_tsne
+    Similar to vis_tsne, can be referred to when new function added.
     """
     pca = PCA(n_components=3)
     pca_result = pca.fit_transform(data)

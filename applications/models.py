@@ -212,22 +212,34 @@ def predictTask(X: Dict, Y: Dict,
                 task_type: str = 'classification',
                 models='all',
                 hparam_dict={},
+                results=[],
                 verbose=True):
     prediction_models = MODELS[task_type]
     if models == 'all':
         models = list(prediction_models.keys())
-    result_dict = {}
-    pred_dict = {}
-    pred_dict['true'] = Y['val']
-    pred_stats = {}
-    best_hparams = {}
+    if results:
+        result_dict, pred_dict, pred_stats, best_hparams = results
+        pred_dict['true'] = Y['val']
+    else:
+        result_dict, pred_dict, pred_stats, best_hparams = {}, {}, {}, {}
+        pred_dict['true'] = Y['val']
+
     for model_name in models:
-        result = predictWithModel(X, Y, task_type,
-                                  model_name,
-                                  hparam_dict=hparam_dict,
-                                  verbose=verbose)
+        model_result = predictWithModel(X, Y, task_type,
+                                        model_name,
+                                        hparam_dict=hparam_dict,
+                                        verbose=verbose)
         if task_type == "classification":
-            result_dict[model_name], pred_dict[model_name], pred_stats[model_name], best_hparams[model_name] = result
+            result_dict[model_name], \
+                pred_dict[model_name], \
+                pred_stats[model_name], \
+                best_hparams[model_name] = model_result
         elif task_type == "regression":
-            result_dict[model_name], pred_dict[model_name], best_hparams[model_name] = result
+            result_dict[model_name], \
+                pred_dict[model_name], \
+                best_hparams[model_name] = model_result
+
+        # update saving
+        for item in results:
+            item.save()
     return result_dict, pred_dict, pred_stats, best_hparams

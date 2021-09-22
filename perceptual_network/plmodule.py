@@ -1,13 +1,22 @@
 ''' The training, evaluation and saving of perceptual network '''
 import os
-from typing import TypeVar
+from typing import Dict, TypeVar
 
+import numpy as np
 import pytorch_lightning as pl
 import torch
-from datasets import REGISTERED_DATASETS, sitk2tensor
+import torch.backends.cudnn as cudnn
+from configs.config_vars import BASE_DIR
+from datasets import REGISTERED_DATASETS
+from datasets.utils import sitk2tensor
+from pytorch_lightning import Trainer
+from pytorch_lightning.callbacks import model_checkpoint
+from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from torch import optim
 from torch.utils.data import DataLoader
+from utils.custom_loggers import PerceptualLogger
 
+from .model import LeNet
 
 Tensor = TypeVar('Tensor', bound=torch.Tensor)
 
@@ -84,3 +93,5 @@ class PercepturalNetwork(pl.LightningModule):
                                             num_workers=4,
                                             pin_memory=True)  # let val = train in debugging mode to see if overfit
         return [self.sample_dataloader]  # debug modified
+
+

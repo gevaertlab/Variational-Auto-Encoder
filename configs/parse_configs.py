@@ -21,7 +21,7 @@ def parse_config():
                         dest="filename",
                         metavar='FILE',
                         help='config file name in /configs folder',
-                        default='vae')
+                        default='vae32_aug')
 
     args = parser.parse_args()
     config = process_config(args.filename)
@@ -47,6 +47,14 @@ def process_config(filename):
     file_path = _get_file_path(filename)
     config['file_name'] = os.path.basename(file_path)
     config = compare_config(config, ref_config)
+
+    # init logging directory
+    logging_path = os.path.join(BASE_DIR,
+                                config['logging_params']['save_dir'],
+                                config['logging_params']['name'])
+    if not os.path.exists(logging_path):
+        print("creating logging directory")
+        os.mkdir(logging_path)
     return config
 
 
@@ -91,11 +99,9 @@ def check_config_item(config,
 
 def extract_ref_value(ref_value):
     assert ref_value.startswith('optional ')
-    value =  ref_value.split(' ')[-1]
+    value = ref_value.split(' ')[-1]
     if value.isnumeric():
         value = float(value)
         if value - int(value) == 0:
             value = int(value)
     return value
-
-

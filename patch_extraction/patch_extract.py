@@ -8,10 +8,12 @@ extract patches:
 
 import os
 import os.path as osp
+import random
 from multiprocessing import Pool, cpu_count
-from utils.funcs import mkdir_safe
+from pathlib import Path
 
 from tqdm import tqdm
+from utils.funcs import mkdir_safe
 from utils.io import load_dcm, load_nrrd, save_as_nrrd
 from utils.visualization import vis_sitk
 
@@ -25,9 +27,11 @@ class PatchExtract:
     def __init__(self,
                  patch_size,
                  ds_params=None,
-                 augmentation_params=None):
+                 augmentation_params=None,
+                 debug=False):
         self.patch_size = patch_size
         self.ds_params = ds_params
+        self.debug = debug  # debug flag, whether to output example images
         if augmentation_params:
             self.augmentation = Augmentation(augmentation_params)
         else:
@@ -38,7 +42,7 @@ class PatchExtract:
                     img,
                     center_point,
                     save_path):
-        """extract patch from a single image
+        """extract patchES from a single image
         1. preprocess
         2. augment
         3. crop
@@ -72,6 +76,7 @@ class PatchExtract:
                      center_point,
                      file_name,
                      save_dir):
+        # calls load image and extract image
         img = self.load_img(img_path=img_path,
                             load_func=load_func)
         self.extract_img(img,
@@ -85,9 +90,10 @@ class PatchExtract:
         else:
             return load_func(img_path)
 
-    def extract_ds(self,
-                   save_dir,
-                   multi=False):
+    def load_extract_ds(self,
+                        save_dir,
+                        multi=False):
+        # called load_extract for the whole dataset
         load_func = self.ds_params['load_func']
         if not multi:
             for file_name, (img_path, center_point) in tqdm(self.ds_params['data_dict'].items()):
@@ -110,17 +116,31 @@ class PatchExtract:
                 p.starmap(self.load_extract,
                           tqdm(data_tuple,
                                total=len(data_tuple)))
+        # visualization
+
         pass
 
-    def vis_ds(self, dataset_dir, vis_dir):
+    def vis_debug(self):
+        # when called, will run some debug visualization functions.
+        raise NotImplementedError
+
+    def vis_ds(self, dataset_dir, vis_dir=None, rd=20):
+        # called when debug flag present
+        if vis_dir is None:  # default path
+            vis_dir = Path(dataset_dir).parent.absolute()
+
         mkdir_safe(vis_dir)
         files = [f for f in os.listdir(dataset_dir) if f.endswith('.nrrd')]
+        if rd:  # random sapmling
+            files = random.sample(files, rd)
         for file in files:
             self.vis_img(img_path=os.path.join(dataset_dir, file),
-                         vis_path=os.path.join(vis_dir, file.replace('.nrrd', '.jpeg')))
+                         vis_path=os.path.join(vis_dir,
+                                               file.replace('.nrrd', '.jpeg')))
         pass
 
     def vis_img(self, img_path, vis_path):
+        # called when debug flag present.
         img = load_nrrd(img_path)
         vis_sitk(img, vis_path=vis_path)
         pass

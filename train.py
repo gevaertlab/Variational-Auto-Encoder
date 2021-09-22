@@ -7,6 +7,7 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 
 from configs.parse_configs import parse_config
+from configs.config_vars import BASE_DIR
 from experiment import VAEXperiment
 from models import VAE_MODELS
 from utils.custom_loggers import VAELogger  # logger

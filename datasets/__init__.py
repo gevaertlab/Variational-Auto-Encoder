@@ -1,9 +1,17 @@
-from .patch_ds import PatchDataset
-from .patch_lidc import LIDCPatchAugDataset, LIDCPatchDataset
+
+
+# from .patch_ds import PatchDataset
+from .ct_lidc import LIDCDataSet
+
+from .patch_lidc import (LIDCPatchAugDataset,
+                         LIDCPatchDataset,
+                         LIDCPatchLabelDataset)
 from .patch_lndb import LNDbPatchDataset
 
+PATCH_DATASETS = {'LIDCPatchDataset': LIDCPatchDataset,
+                  'LIDCPatchAugDataset': LIDCPatchAugDataset,
+                  'LNDbPatchDataset': LNDbPatchDataset,
+                  'LIDCPatchLabelDataset': LIDCPatchLabelDataset}
 
-REGISTERED_DATASETS = {'PatchDataset': PatchDataset,
-                       'LIDCPatchDataset': LIDCPatchDataset,
-                       'LIDCPatchAugDataset': LIDCPatchAugDataset,
-                       'LNDbPatchDataset': LNDbPatchDataset}
+
+CT_DATASETS = {'LIDCDataset': LIDCDataSet}

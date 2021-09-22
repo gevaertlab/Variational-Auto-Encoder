@@ -9,7 +9,10 @@ from tabulate import tabulate
 def getVersion(path):
     ''' Get current version by increment the previous version '''
     folder_lst = os.listdir(path)
-    return max([int(folder.split('_')[1]) for folder in folder_lst]) + 1
+    if not folder_lst:
+        return 1
+    else:
+        return max([int(folder.split('_')[1]) for folder in folder_lst]) + 1
 
 
 def saveConfig(path, config_file):
@@ -96,10 +99,9 @@ def reorder(lst, order):
 def print_dict(dictionary, title=None):
     list_of_list = [[k, v] for k, v in dictionary.items()]
     if title:
-        print(tabulate(list_of_list, headers=title))
+        return tabulate(list_of_list, headers=title)
     else:
-        print(tabulate(list_of_list))
-    pass
+        return tabulate(list_of_list)
 
 
 def iterate_nested_dict(nested_dictionary,
@@ -145,3 +147,7 @@ def access_dict(nested_dict, keychain):
         return nested_dict[keychain[0]]
     elif len(keychain) > 1:
         return access_dict(nested_dict[keychain[0]], keychain[1:])
+
+
+def sort_dict(d):
+    return {key:d[key] for key in sorted(d)}

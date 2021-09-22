@@ -1,11 +1,10 @@
 ### Customized ###
 .vscode/
 logs/
-applications/logs/
-applications/results/
-applications/visualizations/
-perceptual_network/results/
-
+**/logs
+**/results
+**/visualizations
+patch_extraction/registration/
 
 ### Linux ###
 *~

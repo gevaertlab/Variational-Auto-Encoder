@@ -8,10 +8,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='VAE Downstream Tasks Evaluation')
     parser.add_argument('--log-name',
-                        default='VAE3D32', type=str,
+                        default='VAE3D32AUG', type=str,
                         help="Name of the trained model/directory of saved log")
     parser.add_argument('--version',
-                        default=72, type=int,
+                        default=6, type=int,
                         help="Version number of the saved log")
     parser.add_argument('--tasks', nargs='+', type=str,
                         default='all',
@@ -33,7 +33,7 @@ if __name__ == '__main__':
     for task_name in task_names:
         app = Application(args.log_name, args.version, task_name=task_name)
         if 'both' or 'task_predict' in parser.command:
-            app.taskPrediction(models=args.models)
-            app.saveResults()
+            app.task_prediction(models=args.models)
+            app.save_results()
             app.draw_dignosis_figure()
         app.visualize()

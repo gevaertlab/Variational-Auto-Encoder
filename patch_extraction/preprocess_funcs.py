@@ -63,6 +63,7 @@ def _convert_point(center_point: Tuple,
 def convert_spacing(img,
                     spacing=(1, 1, 1),
                     center_point=None):
+    # TODO: new convert spacing function that's based on numpy array.
     resample = sitk.ResampleImageFilter()
     resample.SetInterpolator(sitk.sitkLinear)
     resample.SetOutputDirection(img.GetDirection())
