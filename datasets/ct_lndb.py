@@ -3,24 +3,22 @@ from typing import Union
 import numpy as np
 from .ct_ds import CTDataSet
 import os
+import os.path as osp
 import re
-from time import time
 
 import SimpleITK as sitk
-import pandas as pd
-import pydicom
+from configs.config_vars import DS_ROOT_DIR
 
 
 class LNDBDataSet(CTDataSet):
     '''
     lndb = LNDB()
     ct = lndb.loadCT(306)
-    TODO: modify to comply with ct_ds
     '''
 
     def __init__(self, root_dir: str = None, name='LNDB_train'):
         if root_dir is None:
-            root_dir = '/labs/gevaertlab/data/lung cancer/LNDb/trainset'
+            root_dir = osp.join(DS_ROOT_DIR, 'LNDb/trainset')
         super().__init__(root_dir=root_dir, name=name)
         self.__ct_dir_tree__()
         self.path_dict = {}

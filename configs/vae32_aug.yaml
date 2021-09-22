@@ -1,0 +1,24 @@
+model_params:
+  name: "VAE3D"
+  in_channels: 1
+  latent_dim: 1024
+  hidden_dims: [2, 4, 16, 128]
+  beta: 0.00001
+
+exp_params:
+  dataset: LIDCPatchAugDataset
+  LR: 0.00002
+  batch_size: 36
+  # weight_decay: 0.0
+  max_lr: 0.0005
+  final_div_factor: 10000
+
+trainer_params:
+  max_epochs: 300
+  check_val_every_n_epoch: 10
+
+logging_params:
+  save_dir: "logs/"
+  name: "VAE3D32AUG"
+  visualize_interval: 30 # multiplications of "check_val_every_n_epoch"
+  manual_seed: 9001

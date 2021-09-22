@@ -7,7 +7,9 @@ from torchvision import transforms
 from sklearn.model_selection import train_test_split
 
 
-def train_val_test_split(length: int, ratio: float = 0.1, random_state=9001):
+def train_val_test_split(length: int,
+                         ratio: float = 0.1,
+                         random_state=9001):
     """
     Split dataset to train, val and test sets
     Args:
@@ -28,7 +30,7 @@ def train_val_test_split(length: int, ratio: float = 0.1, random_state=9001):
     return train_idx, val_idx, test_idx
 
 
-class Sitk2Numpy(object):
+class sitk2numpy(object):
     ''' Convert sitk image to numpy and add a channel as the first dimension (float numpy) '''
 
     def __init__(self):
@@ -41,7 +43,7 @@ class Sitk2Numpy(object):
         return {'image': npimg, 'image_name': img_name}
 
 
-class Np2Tensor(object):
+class np2tensor(object):
     ''' Convert numpy image to tensor (float tensor) '''
 
     def __init__(self):
@@ -53,18 +55,4 @@ class Np2Tensor(object):
         return {'image': torch.from_numpy(img), 'image_name': img_name}
 
 
-sitk2tensor = transforms.Compose([Sitk2Numpy(), Np2Tensor()])
-
-
-# deprecated
-# def getCombinedDS(*args, **kwargs):
-#     '''
-#     get combined dataset of LIDC and LNDb
-#     ! not used in this version
-#     @param: root_dir: root directory of dataset, must be None
-#     @param: transformation: transformation of images
-#     @param: split: either 'train', 'val' or 'test'
-#     '''
-#     datasets = [LIDCPatchDataset(*args, **kwargs),
-#                 LNDbPatchDataset(*args, **kwargs)]
-#     return ConcatDataset(datasets)
+sitk2tensor = transforms.Compose([sitk2numpy(), np2tensor()])

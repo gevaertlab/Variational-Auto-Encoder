@@ -12,6 +12,7 @@ exp_params:
   final_div_factor: 10000
 
 trainer_params:
+  dataset: LIDCPatch32Dataset
   max_epochs: 50000
   check_val_every_n_epoch: 10
 

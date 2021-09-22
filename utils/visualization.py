@@ -19,6 +19,7 @@ from sklearn.manifold import TSNE
 from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
 from sklearn.utils.multiclass import unique_labels
 from .funcs import Timer
+import cv2
 
 plt.style.use('ggplot')
 plt.ioff()  # Turn off interactive mode
@@ -38,25 +39,48 @@ def flatten_list(_2d_list):
     return flat_list
 
 
-def visImg(img_array, rng=(0, 1), temp_dir='/home/yyhhli/code/image data/temp_img.png'):
-    plt.imsave(temp_dir, img_array.astype(np.float), vmin=rng[0], vmax=rng[1])
-    # print("Image visualized at", temp_dir)
+def vis_img(img_array,
+            rng=(0, 1),
+            vis_path='/home/yyhhli/code/image data/temp_img.png'):
+
+    plt.imsave(vis_path, img_array.astype(np.float), vmin=rng[0], vmax=rng[1])
     plt.close()
     pass
 
 
-def vis3D(img, axis=0, slice_num=None, temp_dir='/home/yyhhli/code/image data/temp_img.png'):
+def vis_img_with_point(img: np.ndarray,
+                       point_coord_dict: dict,
+                       vis_path: str):
+    """visualize image with points on the image
+
+    Args:
+        img ([np.ndarray]): [image to visualize]
+        point_coord_dict ([dict]): e.g. {"name(label)": (x, y)}
+        vis_path ([str]): [path to save image]
+    """
+    fig, ax = plt.subplots()
+    ax.imshow(img)
+    for key, value in point_coord_dict.items():
+        ax.plot(value)
+        ax.annotate(key, value)
+    plt.savefig(vis_path, dpi=300)
+    pass
+
+
+def vis3d(img,
+          axis=2,
+          slice_num=None,
+          vis_path='/home/yyhhli/code/image data/temp_img.png'):
     if slice_num is None:
         slice_num = int(img.shape[axis]/2)
     indices = {0: None, 1: None, 2: None}
     indices[axis] = slice_num
-    # print(img[tuple(slice(indices[i]) if indices[i] is None else indices[i] for i in range(3))].shape)
-    visImg(img[tuple(slice(indices[i]) if indices[i] is None else indices[i]
-                     for i in range(3))], temp_dir=temp_dir)
+    vis_img(img[tuple(slice(indices[i]) if indices[i] is None else indices[i]
+                      for i in range(3))], vis_path=vis_path)
     pass
 
 
-def vis3DTensor(img_tensor, axis=0, slice_num=None, save_dir='/home/yyhhli/code/image data/temp_img.png'):
+def vis3d_tensor(img_tensor, axis=0, slice_num=None, save_dir='/home/yyhhli/code/image data/temp_img.png'):
     ''' 
     Visualize image tensor of a batch 
     @param: img_tensor: [B, C, L, W, H]
@@ -74,11 +98,14 @@ def vis3DTensor(img_tensor, axis=0, slice_num=None, save_dir='/home/yyhhli/code/
     vutils.save_image(img_tensor_slice.data, save_dir, normalize=True, nrow=8)
 
 
-def visSitk(img, axis=2, slice_num=None, temp_dir='/home/yyhhli/code/image data/temp_img.png'):
+def vis_sitk(img, axis=2, slice_num=None, vis_path='/home/yyhhli/code/image data/temp_img.png'):
     axis2axis = {0: 1, 1: 2, 2: 0}
     np_img = sitk.GetArrayFromImage(img)
     new_axis = axis2axis[axis]
-    vis3D(np_img, axis=new_axis, slice_num=slice_num, temp_dir=temp_dir)
+    vis3d(np_img,
+          axis=new_axis,
+          slice_num=slice_num,
+          vis_path=vis_path)
 
 
 def vis_loss_curve(log_path: str, data: Dict, name='loss_curve.jpeg'):
@@ -267,7 +294,7 @@ def vis_pca(data: np.ndarray,
             label_name='NA',
             label_numeric=False):
     """ 
-    TODO: some duplicated code with vis_tsne
+    Similar to vis_tsne, can be referred to when new function added.
     """
     pca = PCA(n_components=3)
     pca_result = pca.fit_transform(data)

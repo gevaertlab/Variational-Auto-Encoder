@@ -5,11 +5,11 @@ import pytorch_lightning as pl
 from torch import optim
 from torch.utils.data import DataLoader
 
-from datasets.patch_lidc import LIDCPatch32Dataset
+from datasets import REGISTERED_DATASETS
 from datasets.utils import sitk2tensor
 from models._type import Tensor
 from models.vae_base import VAESkeleton
-from utils.visualization import vis3DTensor
+from utils.visualization import vis3d_tensor
 
 
 class VAEXperiment(pl.LightningModule):
@@ -23,6 +23,7 @@ class VAEXperiment(pl.LightningModule):
         self.hold_graph = False
         self.dataloader_params = {'num_workers': 4,
                                   'pin_memory': True}
+        self.dataset = REGISTERED_DATASETS[params['dataset']]
         pass
 
     def forward(self, input: Tensor, **kwargs):  # -> Tensor
@@ -76,11 +77,11 @@ class VAEXperiment(pl.LightningModule):
         recons = self.model.generate(test_input)
 
         # visualization using our codes
-        vis3DTensor(recons.data, save_dir=os.path.join(f"{self.logger.save_dir}{self.logger.name}/version_{self.logger.version}/media",
-                                                       f"recons_{self.logger.name}_{self.current_epoch}.png"))
+        vis3d_tensor(recons.data, save_dir=os.path.join(f"{self.logger.save_dir}{self.logger.name}/version_{self.logger.version}/media",
+                                                        f"recons_{self.logger.name}_{self.current_epoch}.png"))
 
-        vis3DTensor(test_input.data, save_dir=os.path.join(f"{self.logger.save_dir}{self.logger.name}/version_{self.logger.version}/media",
-                                                           f"real_img_{self.logger.name}_{self.current_epoch}.png"))
+        vis3d_tensor(test_input.data, save_dir=os.path.join(f"{self.logger.save_dir}{self.logger.name}/version_{self.logger.version}/media",
+                                                            f"real_img_{self.logger.name}_{self.current_epoch}.png"))
         del test_input, recons  # , samples
 
         # draw loss curves
@@ -101,9 +102,10 @@ class VAEXperiment(pl.LightningModule):
         self.train_dataloader()
         # lr scheduler
         if self.params['max_lr'] is not None:
+            step_per_epoch = self.num_train_imgs // self.params['batch_size'] // 2
             scheduler = optim.lr_scheduler.OneCycleLR(optims[0],
                                                       epochs=self.params['max_epochs'],
-                                                      steps_per_epoch=self.num_train_imgs//self.params['batch_size'] // 2,
+                                                      steps_per_epoch=step_per_epoch,
                                                       max_lr=self.params['max_lr'],
                                                       final_div_factor=self.params['final_div_factor'])
             lr_dict = {'scheduler': scheduler,
@@ -115,8 +117,9 @@ class VAEXperiment(pl.LightningModule):
 
     def train_dataloader(self, shuffle=True, drop_last=True):  # -> DataLoader
         # modified: using only LIDC dataset for simplicity
-        train_ds = LIDCPatch32Dataset(
-            root_dir=None, transform=sitk2tensor, split='train')
+        train_ds = self.dataset(root_dir=None,
+                                transform=sitk2tensor,
+                                split='train')
         self.num_train_imgs = len(train_ds)
         return DataLoader(train_ds,
                           batch_size=self.params['batch_size'],
@@ -126,8 +129,9 @@ class VAEXperiment(pl.LightningModule):
                           pin_memory=True)
 
     def val_dataloader(self, shuffle=False, drop_last=True):
-        val_ds = LIDCPatch32Dataset(
-            root_dir=None, transform=sitk2tensor, split='val')
+        val_ds = self.dataset(root_dir=None,
+                              transform=sitk2tensor,
+                              split='val')
         self.num_val_imgs = len(val_ds)
         self.sample_dataloader = DataLoader(val_ds,
                                             batch_size=self.params['batch_size'],
