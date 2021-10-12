@@ -5,6 +5,7 @@ logs/
 **/results
 **/visualizations
 patch_extraction/registration/
+archive/
 
 ### Linux ###
 *~

@@ -3,11 +3,13 @@
 import json
 import yaml
 import os
+import re
 import os.path as osp
 from typing import List, Union
 from tqdm import tqdm
 import numpy as np
 from configs.config_vars import BASE_DIR
+from evaluations.evaluator import BaseEvaluator
 from experiment import VAEXperiment
 from models import VAE_MODELS
 
@@ -36,7 +38,7 @@ class Embedding:
         else:
             self.file_name = 'embedding.json'
         self.file_dir = osp.join(self.save_dir, self.file_name)
-        self.saved = osp.exists(self.file_dir)
+        self.saved = osp.exists(self.file_dir)  # HACK: could be empty
         pass
 
     def stack_embedding(self, index_lst: List[str], embedding_lst: List[Union[List, np.ndarray]]):
@@ -93,41 +95,10 @@ class Embedding:
         return np.array(self._data['embedding'])
 
 
-class EmbeddingPredictor:
+class EmbeddingPredictor(BaseEvaluator):
 
-    def __init__(self,
-                 base_model_name: str,
-                 log_name: str,
-                 version: int,
-                 ):
-        self.base_model_name = base_model_name
-        self.log_name = log_name
-        self.version = version
-        # TODO: where to load embeddings
-        self.load_dir = osp.join(self.LOG_DIR,
-                                 log_name,
-                                 f'version_{version}')
-        self._config = self._load_config(self.load_dir)
-        self.module = self._init_model(self.load_dir,
-                                       self.base_model_name)
-        pass
-
-    def _load_config(self, load_dir):
-        config_path = os.path.join(load_dir, 'config.yaml')
-        with open(config_path, 'r') as file:
-            config = yaml.safe_load(file)
-        # NOTE: HACK!!! the config file will have the hidden_dims reversed, 
-        # so reverse it to have the same model
-        # assume that the original is from small to large
-        config['model_params']['hidden_dims'].sort()
-        return config
-
-    def _init_model(self, base_dir, base_model_name):
-        vae_model = VAE_MODELS[base_model_name](**self._config['model_params'])
-        ckpt_path = self.__getckptpath__(base_dir)
-        return VAEXperiment.load_from_checkpoint(ckpt_path,
-                                                 vae_model=vae_model,
-                                                 params=self._config['exp_params'])
+    def __init__(self, base_model_name: str, log_name: str, version: int):
+        super().__init__(base_model_name, log_name, version)
 
     def predict_embedding(self,
                           dataloader,
@@ -138,14 +109,7 @@ class EmbeddingPredictor:
         dl_params: e.g. {'shuffle':False, 'drop_last':False}
         """
         embedding = Embedding(self.log_name, self.version, split)
-        if isinstance(dataloader, str):
-            dataloader = getattr(self.module)(**dl_params)
-        elif isinstance(dataloader, torch.utils.data.DataLoader):
-            # input dataloader instance
-            dataloader = dataloader
-        else:
-            raise NotImplementedError("[EmbeddingPredictor] \
-                Not supported dataloder type: \'{type(dataloader)}\'")
+        dataloader = self._parse_dataloader(dataloader, dl_params=dl_params)
         print(f"[EmbeddingPredictor] Predicting embeddings \
             for {len(dataloader)} images")
         for batch, file_names in tqdm(dataloader):

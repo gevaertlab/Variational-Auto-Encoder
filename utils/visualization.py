@@ -201,13 +201,15 @@ def residual_plot(y_true, y_pred, save_dir='/home/yyhhli/temp.jpeg'):
 
 
 def ytrue_ypred_scatter(pred_dict, save_dir='/home/yyhhli/temp.jpeg'):
+    # need to get rid of empty entries first
+    pred_dict = {k: v for (k, v) in pred_dict.items() if len(v)}
     fig = plt.figure(figsize=(6, 6))
     ax = fig.add_subplot(111)
     ax.set_aspect('equal')
     y_true = pred_dict['true']
     ax.set_aspect('equal')
     for model_name, pred in pred_dict.items():
-        if model_name != "true":
+        if model_name != "true" and model_name != "__dict":
             plt.scatter(y_true, pred, label=model_name)
     lims = [
         np.min([ax.get_xlim(), ax.get_ylim()]),  # min of both axes
@@ -259,6 +261,8 @@ def confusion_matrix_subplot(y_true,
 
 
 def confusion_matrix_models(pred_dict, save_dir, classes=list(range(1, 6))):
+    # need to get rid of empty entries first
+    pred_dict = {k: v for (k, v) in pred_dict.items() if len(v)}
     model_names = list(pred_dict.keys())
     model_names.remove('true')
     y_true = pred_dict['true']
@@ -282,7 +286,7 @@ def confusion_matrix_models(pred_dict, save_dir, classes=list(range(1, 6))):
                                      ax=ax,
                                      title=model_names[i],
                                      classes=classes)
-        plt.savefig(save_dir, dpi=400)
+        plt.savefig(save_dir, dpi=200)
         plt.close()
         print(f"Visualized at {save_dir}")
         pass

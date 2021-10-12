@@ -47,12 +47,14 @@ li_reg = {'basemodel': partial(ElasticNet, **RANDOM_DICT),
 rfr = {'basemodel': partial(RandomForestRegressor, **RANDOM_DICT, **NJOB_DICT),
        'params': dict(n_estimators=[10, 100, 200])}
 
-svr = {'basemodel': SVR,
+svr = {'basemodel': partial(SVR, max_iter=1000),  # efficiency
        'params': dict(degree=[3, 5, 7], C=[0.1, 1, 10], epsilon=[0.01, 0.1, 1])}
 
-mlpr = {'basemodel': partial(MLPRegressor, **RANDOM_DICT, early_stopping=True),
-        'params': dict(hidden_layer_sizes=[(100, 10), (100, 20), (200, 20), (400, 40)],
-                       max_iter=[2000])}
+mlpr = {'basemodel': partial(MLPRegressor, **RANDOM_DICT, early_stopping=True, max_iter=2000),
+        'params': dict(hidden_layer_sizes=[(100, 10),
+                                           (100, 20),
+                                           (200, 20),
+                                           (400, 40)])}
 
 gboost = {'basemodel': partial(GradientBoostingRegressor, **RANDOM_DICT),
           'params': dict(learning_rate=[0.01],
@@ -71,14 +73,14 @@ lr = {'basemodel': partial(LogisticRegression, penalty='elasticnet', solver='sag
 knn = {'basemodel': partial(KNeighborsClassifier, **NJOB_DICT),
        'params': dict(n_neighbors=[3, 5, 7, 10], p=[1, 1, 5, 2])}
 
-svc = {'basemodel': partial(SVC, **RANDOM_DICT, probability=True),
+svc = {'basemodel': partial(SVC, **RANDOM_DICT, probability=True, max_iter=1000),
        'params': dict(C=[0.01, 0.1, 1], degree=[1, 2, 3])}
 
 rf = {'basemodel': partial(RandomForestClassifier, **RANDOM_DICT, **NJOB_DICT),
       'params': dict(n_estimators=[10, 100, 200])}
 
-mlp = {'basemodel': partial(MLPClassifier, **RANDOM_DICT, early_stopping=True),
-       'params': dict(hidden_layer_sizes=[(100, 10), (100, 20), (200, 20), (400, 40)], max_iter=[2000])}
+mlp = {'basemodel': partial(MLPClassifier, **RANDOM_DICT, early_stopping=True, max_iter=2000),
+       'params': dict(hidden_layer_sizes=[(100, 10), (100, 20), (200, 20), (400, 40)])}
 
 
 CLASSIFICATION_MODELS = {'logistic_regression': lr,

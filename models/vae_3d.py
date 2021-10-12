@@ -5,10 +5,10 @@ from torch import nn
 from torch.nn import functional as F
 
 from ._type import List, Callable, Union, Any, TypeVar, Tuple, Tensor
-from .vae_base import VAESkeleton
+from .vae_base import VAEBackbone
 
 
-class VAE3D(VAESkeleton):
+class VAE3D(VAEBackbone):
 
     def __init__(self,
                  in_channels: int = 1,

@@ -5,6 +5,7 @@ import numpy as np
 import torch
 from torchvision import transforms
 from sklearn.model_selection import train_test_split
+from collections import deque
 
 
 def train_val_test_split(length: int,
@@ -56,3 +57,39 @@ class np2tensor(object):
 
 
 sitk2tensor = transforms.Compose([sitk2numpy(), np2tensor()])
+
+
+class LRUCache:
+    def __init__(self, capacity: int):
+        self.dict = {}
+        self.queue = deque([])
+        self.capacity = capacity
+
+    def has(self, key):
+        return (key in self.dict)
+
+    def queue_update(self, key):
+        # For every operation we want to update queue
+        if key in self.queue:
+            self.queue.remove(key)
+        self.queue.append(key)
+
+    def get(self, key: int):
+        # TC is O(N) where N is no of instructions
+        self.queue_update(key)
+        return self.dict.get(key, -1)
+
+    def put(self, key: int, value: int):
+        # TC is same here O(N)
+        # check if the key is not in dictionary already and if there are more than capacity items in dictionary
+        if key not in self.dict.keys() and len(self.dict) >= self.capacity:
+            while 1:  # keep doing this shit because the key might not exist in the dictionary
+                try:
+                    evacuate = self.queue.popleft()
+                    del self.dict[evacuate]
+                    break
+                except Exception:
+                    continue
+        self.queue_update(key)
+        self.dict[key] = value
+        pass

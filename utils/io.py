@@ -33,6 +33,12 @@ def load_dcm(img_path):
     return _load_img(img_path, 'dcm')
 
 
+def load_mhd(img_path):
+    img = sitk.ReadImage(img_path)
+    np_img = sitk.GetArrayFromImage(img)
+    return np_img
+
+
 @singledispatch
 def save_as_nrrd(img, save_path, verbose=0):
     raise NotImplementedError

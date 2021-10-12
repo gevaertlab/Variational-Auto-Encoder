@@ -5,7 +5,8 @@ from datasets.embedding import EmbeddingPredictor, Embedding
 from utils.save_dict import NpyDict
 from utils.save_dict import JsonDict
 from configs.config_vars import BASE_DIR
-from .__init__ import TASK_DICT, LABEL_DICT
+from .__init__ import TASK_DICT
+from datasets.label.label_dict import LABEL_DICT
 import os
 import os.path as osp
 from .models import predictTask
@@ -47,7 +48,7 @@ class Application:
         self.timer = Timer()
 
         # calculations:
-        self.embeddings = self.get_embeddings()
+        embeddings, label_names = self.get_embeddings()
         self.labels = self.get_labels(task_name)
         self.task = TASK_DICT[task_name]()
 
@@ -110,12 +111,17 @@ class Application:
                                        self.log_name,
                                        self.version)
 
-        if not embeddings['train'].saved():
-            embeddings['train'] = predictor.predict_embedding('train_dataloader',
+        if not embeddings['train'].saved:
+            embeddings['train'] = predictor.predict_embedding(dataloader='train_dataloader',
                                                               split='train')
-        if not embeddings['val'].saved():
-            embeddings['val'] = predictor.predict_embedding('val_dataloader',
+        else:
+            _ = embeddings['train'].load()
+        if not embeddings['val'].saved:
+            embeddings['val'] = predictor.predict_embedding(dataloader='val_dataloader',
                                                             split='val')
+        else:
+            _ = embeddings['val'].load()
+
         self.embeddings = {'train': embeddings['train']._data['embedding'],
                            'val': embeddings['val']._data['embedding']}
         self.data_names = {'train': embeddings['train']._data['index'],
@@ -200,6 +206,47 @@ class Application:
             self.pred_stats.save()
             if verbose:
                 print(f"Saved results to {self.pred_stats.save_path}")
+            pass
+
+    def load_results(self, verbose=True):
+        """
+        load the results after completing a task prediction job
+        loading:
+        1. metrics for best models
+        2. hyperparameters for best models
+        3. predictions for best models
+        """
+        print("[Application] Loading results")
+        # 1. saving metrics for best models
+        assert osp.exists(
+            self.result_dict.save_path), "result_dict doesn't exist"
+        # save result_dict file
+        self.result_dict.load()
+        if verbose:
+            print(f"Load results from {self.result_dict.save_path}")
+
+        # 2. saveing hyperparameters for best models
+        assert osp.exists(
+            self.hparam_dict.save_path), "hparam_dict doesn't exist"
+        # save hparam_dict file
+        self.hparam_dict.load()
+        if verbose:
+            print(f"Load results from {self.hparam_dict.save_path}")
+
+        # 3. saving predictions for best models: use NPY files
+        assert osp.exists(self.pred_dict.save_path), "pred_dict doesn't exist"
+        # save pred_dict file
+        self.pred_dict.load()
+        if verbose:
+            print(f"Load results from {self.pred_dict.save_path}")
+
+        # 4. saving pred_stats for best models: use NPY files
+        # NOTE: is ok for the pred_stats to be not exist
+        if osp.exists(self.pred_stats.save_path):
+            # save self.pred_stats file
+            self.pred_stats.load()
+            if verbose:
+                print(f"Load results from {self.pred_stats.save_path}")
             pass
 
     def draw_dignosis_figure(self, verbose=True):
