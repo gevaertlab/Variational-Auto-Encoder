@@ -1,4 +1,5 @@
 import json
+import torch
 import yaml
 import os
 import re
@@ -81,8 +82,15 @@ class BaseEvaluator:
 class MetricEvaluator(BaseEvaluator):
     """ calculate more custom metrics """
 
-    def __init__(self, metrics: List, base_model_name: str, log_name: str, version: int):
-        super().__init__(base_model_name, log_name, version)
+    def __init__(self,
+                 metrics: List,
+                 base_model_name: str,
+                 log_name: str,
+                 version: int):
+        super().__init__(log_name=log_name,
+                         version=version,
+                         base_model_name=base_model_name)
+
         try:
             self.metrics = {name: globals()[name] for name in metrics}
         except KeyError as e:
@@ -96,12 +104,18 @@ class MetricEvaluator(BaseEvaluator):
         dataloader = self._parse_dataloader(dataloader, dl_params=dl_params)
         metrics_dict = {name: [] for name in self.metrics.keys()}
         for batch, file_names in tqdm(dataloader):
-            recon_batch = self.module.model.forward(batch)
-            for name, func in self.metrics.items():
-                metrics_dict[name].append(func(batch, recon_batch))
-                # TODO: need to optimize for pytorch tensor type
-        # TODO: concat all the results in metrics dict and store
-        pass
-    
+            output = self.module.model.forward(batch)
+            # detach
+            batch, recon_batch = batch.detach(), output[0].detach()
+
+            for i in range(batch.shape[0]):
+                img, recon = batch[i, 0, ::], recon_batch[i, 0, ::]
+
+                for name, func in self.metrics.items():
+                    result = func(img, recon)
+                    metrics_dict[name].append(result)
+
+        return metrics_dict
+
     def __call__(self, *args: Any, **kwds: Any) -> Any:
         return self.calc_metrics(*args, **kwds)

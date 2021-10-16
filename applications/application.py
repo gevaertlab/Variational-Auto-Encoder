@@ -2,6 +2,7 @@
 
 
 from datasets.embedding import EmbeddingPredictor, Embedding
+from utils.python_logger import get_logger
 from utils.save_dict import NpyDict
 from utils.save_dict import JsonDict
 from configs.config_vars import BASE_DIR
@@ -11,7 +12,7 @@ import os
 import os.path as osp
 from .models import predictTask
 from utils.visualization import vis_heatmap, ytrue_ypred_scatter, confusion_matrix_models, vis_pca, vis_tsne
-from utils.funcs import Timer
+from utils.timer import Timer
 
 
 class Application:
@@ -30,10 +31,17 @@ class Application:
                  version: int,
                  task_name: str,
                  base_model_name: str = 'VAE3D'):
+        self.timer = Timer(name=(osp.basename(__file__), self.__class__.__name__))
+        self.timer()
+        # logger
+        self.logger = get_logger(osp.basename(__file__), 
+                                 self.__class__.__name__, 
+                                 create_file=False)
         # to get embedding
         self.base_model_name = base_model_name
         self.log_name = log_name
         self.version = version
+
         # get load and save dir
         self.load_dir = os.path.join(self.LOG_DIR,
                                      log_name,
@@ -45,15 +53,16 @@ class Application:
             os.mkdir(self.save_dir)
         # to get label and task
         self.task_name = task_name
-        self.timer = Timer()
 
         # calculations:
-        embeddings, label_names = self.get_embeddings()
+        self.embeddings, self.data_names = {}, {}
+        embeddings, data_names = self.get_embeddings()
         self.labels = self.get_labels(task_name)
         self.task = TASK_DICT[task_name]()
 
         # init: results
         self._init_results()
+        self.timer("initializing")
         pass
 
     def _init_results(self):
@@ -98,8 +107,8 @@ class Application:
         self.timer('match labels')
         return label
 
-    def get_embeddings(self, split='train'):
-
+    def get_embeddings(self, augment=False):
+        self.logger.info("initializing embeddings")
         embeddings = {'train': Embedding(self.log_name,
                                          self.version,
                                          split='train'),
@@ -122,10 +131,11 @@ class Application:
         else:
             _ = embeddings['val'].load()
 
-        self.embeddings = {'train': embeddings['train']._data['embedding'],
-                           'val': embeddings['val']._data['embedding']}
-        self.data_names = {'train': embeddings['train']._data['index'],
-                           'val': embeddings['val']._data['index']}
+        self.embeddings['train'], self.data_names['train'] = \
+            embeddings['train'].get_embedding(augment=augment)
+        self.embeddings['val'], self.data_names['val'] = \
+            embeddings['val'].get_embedding(augment=augment)
+
         return self.embeddings, self.data_names
 
     def preprocess_data(self):
@@ -133,7 +143,7 @@ class Application:
         X, Y = self.task.transform(self.embeddings, self.labels)
         return X, Y
 
-    def task_prediction(self, models='all'):
+    def task_prediction(self, tune_hparams=True, models='all'):
         """
         Predict a task
         Args:
@@ -142,8 +152,7 @@ class Application:
             dict: results (metrics) of predictions
         """
         border = "-----"
-        print(f"{border}Prediction for task {self.task_name}{border}")
-        X, Y = self.preprocess_data()
+        self.logger.info(f"{border}Prediction for task {self.task_name}{border}")
 
         # TRAIN + PREDICT
         self.load_hparam_dict()
@@ -151,22 +160,31 @@ class Application:
                    self.pred_dict,
                    self.pred_stats,
                    self.hparam_dict)
-        results = predictTask(X, Y,
-                              self.task.task_type,
+        results = predictTask(task=self.task,
+                              X=self.embeddings, Y=self.labels,
                               models=models,
                               results=results,
+                              tune_hparams=tune_hparams,
                               hparam_dict=self.hparam_dict)
         result_dict, pred_dict, pred_stats, hparam_dict = results
         return result_dict, pred_dict, pred_stats, hparam_dict
+
+    def association_analysis(self):
+        """
+        perform association analysis between embeddings and labels
+        using non-auged images in training set
+        """
+        # TODO: implement this
+        pass
 
     def load_hparam_dict(self):
         """ load hparam dictionary which should be the same place as save"""
 
         if os.path.exists(self.hparam_dict.save_path):
-            print("Loading best hparams ...")
+            self.logger.info("Loading best hparams ...")
             self.hparam_dict.load()
         else:
-            print("New task, no hparams file loaded")
+            self.logger.info("New task, no hparams file loaded")
         pass
 
     def save_results(self, verbose=True):
@@ -183,21 +201,21 @@ class Application:
         # save result_dict file
         self.result_dict.save()
         if verbose:
-            print(f"Saved results to {self.result_dict.save_path}")
+            self.logger.info(f"Saved results to {self.result_dict.save_path}")
 
         # 2. saveing hyperparameters for best models
         assert self.hparam_dict.keys(), "hparam_dict doesn't exist"
         # save hparam_dict file
         self.hparam_dict.save()
         if verbose:
-            print(f"Saved results to {self.hparam_dict.save_path}")
+            self.logger.info(f"Saved results to {self.hparam_dict.save_path}")
 
         # 3. saving predictions for best models: use NPY files
         assert self.pred_dict.keys(), "pred_dict doesn't exist"
         # save pred_dict file
         self.pred_dict.save()
         if verbose:
-            print(f"Saved results to {self.pred_dict.save_path}")
+            self.logger.info(f"Saved results to {self.pred_dict.save_path}")
 
         # 4. saving pred_stats for best models: use NPY files
         # NOTE: is ok for the pred_stats to be not exist
@@ -205,7 +223,7 @@ class Application:
             # save self.pred_stats file
             self.pred_stats.save()
             if verbose:
-                print(f"Saved results to {self.pred_stats.save_path}")
+                self.logger.info(f"Saved results to {self.pred_stats.save_path}")
             pass
 
     def load_results(self, verbose=True):
@@ -216,14 +234,14 @@ class Application:
         2. hyperparameters for best models
         3. predictions for best models
         """
-        print("[Application] Loading results")
+        self.logger.info("Loading results")
         # 1. saving metrics for best models
         assert osp.exists(
             self.result_dict.save_path), "result_dict doesn't exist"
         # save result_dict file
         self.result_dict.load()
         if verbose:
-            print(f"Load results from {self.result_dict.save_path}")
+            self.logger.info(f"Load results from {self.result_dict.save_path}")
 
         # 2. saveing hyperparameters for best models
         assert osp.exists(
@@ -231,14 +249,14 @@ class Application:
         # save hparam_dict file
         self.hparam_dict.load()
         if verbose:
-            print(f"Load results from {self.hparam_dict.save_path}")
+            self.logger.info(f"Load results from {self.hparam_dict.save_path}")
 
         # 3. saving predictions for best models: use NPY files
         assert osp.exists(self.pred_dict.save_path), "pred_dict doesn't exist"
         # save pred_dict file
         self.pred_dict.load()
         if verbose:
-            print(f"Load results from {self.pred_dict.save_path}")
+            self.logger.info(f"Load results from {self.pred_dict.save_path}")
 
         # 4. saving pred_stats for best models: use NPY files
         # NOTE: is ok for the pred_stats to be not exist
@@ -246,7 +264,7 @@ class Application:
             # save self.pred_stats file
             self.pred_stats.load()
             if verbose:
-                print(f"Load results from {self.pred_stats.save_path}")
+                self.logger.info(f"Load results from {self.pred_stats.save_path}")
             pass
 
     def draw_dignosis_figure(self, verbose=True):
@@ -260,7 +278,7 @@ class Application:
                 ytrue_ypred_scatter(self.pred_dict, os.path.join(
                     self.APP_DIR, diagnosis_figure_file))
             except Exception as e:
-                print(e)
+                self.logger.info(e)
                 return
         elif self.task.task_type == 'classification':
             try:
@@ -269,10 +287,10 @@ class Application:
                                                      diagnosis_figure_file),
                                         classes=list(range(1, 6)))
             except Exception as e:
-                print(e)
+                self.logger.info(e)
                 return
         if verbose:
-            print(f"Saved figure to {diagnosis_figure_file}")
+            self.logger.info(f"Saved figure to {diagnosis_figure_file}")
         pass
 
     def visualize(self):

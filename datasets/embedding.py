@@ -1,6 +1,7 @@
 """ organize embedding dataset, predict, save, load embeddings from all kinds of model on all kinds of datasets """
 
 import json
+import pandas as pd
 import yaml
 import os
 import re
@@ -20,6 +21,7 @@ import torch
 class Embedding:
     """
     store embedding data format, can save and load embeddings from drive
+    can get embeddings of various types (aug/no aug, train/val)
     """
     LOG_DIR = osp.join(BASE_DIR, 'applications/logs')
 
@@ -82,23 +84,49 @@ class Embedding:
             self._data = data
         return data
 
-    def get_embedding(self):
+    def _filter_aug(self):
+        """ 
+        return self._data without augmented patches, if didn't aug,
+        return self._data
+        """
+        if "Aug" in self._data['index'][0]:
+            non_aug = [(i, name) for (i, name) in enumerate(
+                self._data['index']) if "Aug00" in name]
+            non_aug_idx = [i for (i, name) in non_aug]
+            non_aug_name = [name for (i, name) in non_aug]
+            non_aug_embedding = [self._data['embedding'][i]
+                                 for i in non_aug_idx]
+            return non_aug_embedding, non_aug_name
+        else:
+            return self.get_embedding(augment=True)
+
+    def get_embedding(self, augment=False):
         """
         Get embedding
         Args:
             self.saved.
+            augment: whether to read augmented embeddings, default to be false
         Returns:
             np.array: embedding
         """
         if not self.saved:
             self.save()
-        return np.array(self._data['embedding'])
+        if not augment:
+            return self._filter_aug()
+
+        else:
+            return np.array(self._data['embedding']), self._data['index']
 
 
 class EmbeddingPredictor(BaseEvaluator):
 
-    def __init__(self, base_model_name: str, log_name: str, version: int):
-        super().__init__(base_model_name, log_name, version)
+    def __init__(self,
+                 base_model_name: str,
+                 log_name: str,
+                 version: int):
+        super().__init__(log_name=log_name,
+                         version=version,
+                         base_model_name=base_model_name)
 
     def predict_embedding(self,
                           dataloader,

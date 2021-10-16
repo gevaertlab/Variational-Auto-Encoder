@@ -35,12 +35,28 @@ class TaskBase:
         self.transform_dict = meta_dict
         return {'train': x_train_std, 'val': x_val_std}, Y
 
+    def transform_x(self, X):
+        # for X
+        x_train_std, meta_dict = self.normalize(X['train'])
+        x_val_std = (X['val'] - meta_dict['mean']) / meta_dict['std']
+        self.transform_dict = meta_dict
+        return {'train': x_train_std, 'val': x_val_std}
+
+    def inverse_transform_x(self, trans_x):
+        if isinstance(trans_x, np.ndarray):
+            return trans_x * self.transform_dict['std'] + self.transform_dict['mean']
+        x_train = trans_x['train'] * \
+            self.transform_dict['std'] + self.transform_dict['mean']
+        x_val = trans_x['val'] * self.transform_dict['std'] + \
+            self.transform_dict['mean']
+        return {'train': x_train, 'val': x_val}
+
     def inverse_transform(self, X=None, Y=None):
         """ do inverse transformation for X or Y """
         if X is not None and Y is not None:
-            return X, Y
+            return self.inverse_transform_x(X), Y
         elif X is not None:
-            return X
+            return self.inverse_transform_x(X)
         elif Y is not None:
             return Y
         else:
@@ -68,63 +84,103 @@ class TaskVolume(TaskBase):
 
     def transform(self, X, Y):  # HACK: hard code X and Y's keys
         """ Standardize X and then log transform Y """
-        # for X
-        x_train_std, meta_dict = self.normalize(X['train'])
-        x_val_std = (X['val'] - meta_dict['mean']) / meta_dict['std']
-        self.transform_dict = meta_dict
-        # for Y
-        y_trian_log = np.log(Y['train'])
-        y_val_log = np.log(Y['val'])
-        # returned a new dictionary, different from the previous one
-        return {'train': x_train_std, 'val': x_val_std}, \
-               {'train': y_trian_log, 'val': y_val_log}
+        trans_x = self.transform_x(X)
+        trans_y = self.transform_y(Y)
+        return trans_x, trans_y
 
     def inverse_transform(self, X=None, Y=None):
-        """ X -> stadardized, Y -> log taken """
-        if X is not None and Y is not None:
-            new_x, new_y = {}, {}
-            # for X
-            for key, value in X.items():
-                new_x[key] = value * self.transform_dict['std'] + \
-                    self.transform_dict['mean']
-            # for Y
-            for key, value in Y.items():
-                new_y[key] = np.exp(value)
-            return new_x, new_y
-        elif X is not None:
-            new_x = {}
-            for key, value in X.items():
-                new_x[key] = value * self.transform_dict['std'] + \
-                    self.transform_dict['mean']
-            return new_x
-        elif Y is not None:
-            new_y = {}
-            for key, value in Y.items():
-                new_y[key] = np.exp(value)
-            return new_y
-        else:
+        if X is None and Y is None:
             return None
 
+        if X is not None:
+            X = self.inverse_transform_x(X)
+        if Y is not None:
+            Y = self.inverse_transform_y(Y)
 
-class TaskMalignancy(TaskBase):
+        if X is None:
+            return Y
+        elif Y is None:
+            return X
+        else:
+            return X, Y
 
-    def __init__(self, name: str = 'malignancy', task_type: str = 'classification'):
+        # # for X
+        # x_train_std, meta_dict = self.normalize(X['train'])
+        # x_val_std = (X['val'] - meta_dict['mean']) / meta_dict['std']
+        # self.transform_dict = meta_dict
+        # # for Y
+        # y_trian_log = np.log(Y['train'])
+        # y_val_log = np.log(Y['val'])
+        # # returned a new dictionary, different from the previous one
+        # return {'train': x_train_std, 'val': x_val_std}, \
+        #        {'train': y_trian_log, 'val': y_val_log}
+
+    def transform_x(self, X):
+        return super().transform_x(X)
+
+    def inverse_transform_x(self, trans_x):
+        return super().inverse_transform_x(trans_x)
+
+    def transform_y(self, Y):
+        # for Y
+        y_train_log = np.log(Y['train'])
+        y_val_log = np.log(Y['val'])
+        return {'train': y_train_log, "val": y_val_log}
+
+    def inverse_transform_y(self, trans_y):
+        if isinstance(trans_y, np.ndarray):
+            return np.exp(trans_y)
+        y_train = np.exp(trans_y['train'])
+        y_val = np.exp(trans_y['val'])
+        return {'train': y_train, "val": y_val}
+
+    # def inverse_transform(self, X=None, Y=None):
+    #     """ X -> stadardized, Y -> log taken """
+    #     return super().inverse_transform(X, Y)
+        # if X is not None and Y is not None:
+        #     new_x, new_y = {}, {}
+        #     # for X
+        #     for key, value in X.items():
+        #         new_x[key] = value * self.transform_dict['std'] + \
+        #             self.transform_dict['mean']
+        #     # for Y
+        #     for key, value in Y.items():
+        #         new_y[key] = np.exp(value)
+        #     return new_x, new_y
+        # elif X is not None:
+        #     new_x = {}
+        #     for key, value in X.items():
+        #         new_x[key] = value * self.transform_dict['std'] + \
+        #             self.transform_dict['mean']
+        #     return new_x
+        # elif Y is not None:
+        #     new_y = {}
+        #     for key, value in Y.items():
+        #         new_y[key] = np.exp(value)
+        #     return new_y
+        # else:
+        #     return None
+
+
+class TaskMalignancy(TaskBase): # HACK
+
+    def __init__(self, name: str = 'malignancy', task_type: str = 'regression'):
         super().__init__(name=name, task_type=task_type)
 
 
 class TaskTexture(TaskBase):
 
-    def __init__(self, name: str = 'texture', task_type: str = 'classification'):
+    def __init__(self, name: str = 'texture', task_type: str = 'regression'):
         super().__init__(name=name, task_type=task_type)
 
 
 class TaskSpiculation(TaskBase):
 
-    def __init__(self, name: str = 'spiculation', task_type: str = 'classification'):
+    def __init__(self, name: str = 'spiculation', task_type: str = 'regression'):
         super().__init__(name=name, task_type=task_type)
 
 
 class TaskSubtlety(TaskBase):
 
-    def __init__(self, name: str = 'subtlety', task_type: str = 'classification'):
+    def __init__(self, name: str = 'subtlety', task_type: str = 'regression'):
         super().__init__(name=name, task_type=task_type)

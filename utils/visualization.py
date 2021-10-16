@@ -1,9 +1,12 @@
 ''' This file provides util functions to visualize various type of data '''
-import matplotlib
+import inspect
 import math
 import os
+import os.path as osp
 from typing import Dict, Union
 
+import cv2
+import matplotlib
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 import numpy as np
@@ -18,8 +21,8 @@ from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
 from sklearn.utils.multiclass import unique_labels
-from .funcs import Timer
-import cv2
+
+from .timer import Timer
 
 plt.style.use('ggplot')
 plt.ioff()  # Turn off interactive mode
@@ -210,7 +213,9 @@ def ytrue_ypred_scatter(pred_dict, save_dir='/home/yyhhli/temp.jpeg'):
     ax.set_aspect('equal')
     for model_name, pred in pred_dict.items():
         if model_name != "true" and model_name != "__dict":
-            plt.scatter(y_true, pred, label=model_name)
+            plt.scatter(x=y_true, y=pred, label=model_name)
+            plt.xlabel("Y True")
+            plt.ylabel("Y Pred")
     lims = [
         np.min([ax.get_xlim(), ax.get_ylim()]),  # min of both axes
         np.max([ax.get_xlim(), ax.get_ylim()]),  # max of both axes
@@ -348,7 +353,7 @@ def vis_tsne(data: np.ndarray,
              save_path: str,
              label_name='NA',
              label_numeric=False):
-    timer = Timer()
+    timer = Timer((osp.basename(__file__), "vis_tsne"))
     timer()
     tsne = TSNE(n_components=2, verbose=1, perplexity=40, n_iter=300)
     tsne_results = tsne.fit_transform(data)

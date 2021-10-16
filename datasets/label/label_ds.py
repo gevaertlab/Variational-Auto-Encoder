@@ -7,7 +7,8 @@ import os
 import numpy as np
 import pylidc as dc
 from multiprocessing import Pool, cpu_count
-from utils.funcs import reorder, get_order, Timer, sort_dict
+from utils.funcs import reorder, get_order, sort_dict
+from utils.timer import Timer
 
 
 class Label:
@@ -20,7 +21,7 @@ class Label:
         self.log_dir = log_dir
         self.save_path = self._get_save_path()
         self._data = {}
-        self.timer = Timer()
+        self.timer = Timer((__file__, self.__class__.__name__))
         self._advance_init()
         pass
 

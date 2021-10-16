@@ -10,14 +10,9 @@ import pandas as pd
 import SimpleITK as sitk
 from configs.config_vars import DS_ROOT_DIR
 from utils.io import load_mhd
+from utils.python_logger import get_logger
 
 from .ct_ds import CTDataset
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-formatter = logging.Formatter(
-    "[%(asctime)s | %(module)s:%(funcName)15s()] %(message)s")
-logger.setFormatter(formatter)
 
 
 class LNDbDataset(CTDataset):
@@ -40,6 +35,7 @@ class LNDbDataset(CTDataset):
         self.load_funcs['ct'] = load_mhd
         self.impl_set = ['all', 'train', 'test']
         self.set_split(split)
+        self.logger = get_logger((__file__, self.__class__.__name__))
         pass
 
     def _set_ds_info(self):
@@ -47,7 +43,7 @@ class LNDbDataset(CTDataset):
         initializing self._ds_info
         """
         if not self._split:
-            logger.info("split not set, default to be \"all\".")
+            self.logger.info("split not set, default to be \"all\".")
         self.set_split('all')
         filelist = self._get_files()
         meta_csv = self._get_meta_csv()
@@ -81,7 +77,7 @@ class LNDbDataset(CTDataset):
         try:
             assert split in self.impl_set
         except AssertionError:
-            logger.exception(f"split {split} not in {self.impl_set}")
+            self.logger.exception(f"split {split} not in {self.impl_set}")
         pass
 
     def set_split(self, split):
@@ -91,7 +87,7 @@ class LNDbDataset(CTDataset):
 
     def _get_files(self):
         if not self._split:
-            logger.info("split not set, default to be \"all\".")
+            self.logger.info("split not set, default to be \"all\".")
         self.set_split('all')
         if self._split == 'train':
             return self._get_file_from_root(osp.join(self.root_dir, 'trainset'))
@@ -101,7 +97,7 @@ class LNDbDataset(CTDataset):
             return self._get_file_from_root(osp.join(self.root_dir, 'trainset')) + \
                 self._get_file_from_root(osp.join(self.root_dir, 'testset'))
         else:
-            logger.warning("split {self._split} not implemented")
+            self.logger.warning("split {self._split} not implemented")
             return []
 
     @staticmethod
@@ -125,8 +121,8 @@ class LNDbDataset(CTDataset):
                 path = osp.join(self.root_dir, 'testset', 'testNodules.csv')
                 metacsv = self._get_meta_csv(path=path)
             elif self._split == 'all':
-                metacsv = pd.concat(self._get_meta_csv(path=osp.join(self.root_dir, 'trainset', 'trainNodules.csv'),
-                                                       path=osp.join(self.root_dir, 'testset', 'testNodules.csv')),
+                metacsv = pd.concat([self._get_meta_csv(path=osp.join(self.root_dir, 'trainset', 'trainNodules.csv')),
+                                     self._get_meta_csv(path=osp.join(self.root_dir, 'testset', 'testNodules.csv'))],
                                     axis=0)
         # postprocessing
         # 1. delete non nodules

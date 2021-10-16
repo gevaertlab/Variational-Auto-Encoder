@@ -1,4 +1,5 @@
-from typing import Any, Dict, Optional, Union
+import logging
+from typing import Optional
 from pytorch_lightning.loggers import CSVLogger, TestTubeLogger
 from pytorch_lightning.utilities import _module_available
 import pandas as pd
@@ -153,3 +154,4 @@ class PerceptualLogger(CSVLogger):
         self.save()
         self.draw_loss_curve()
         self.close()
+
