@@ -7,16 +7,18 @@ The CT dataset that can has several functionalities:
 """
 
 
-from typing import Any
-from datasets.utils import LRUCache
 import functools
 import json
 import os
+import os.path as osp
+from abc import ABCMeta, abstractmethod
+from typing import Any
 
+from datasets.utils import LRUCache, train_val_test_split
 from numpy.lib.arraysetops import isin
 from torch.utils.data.dataset import Dataset
-from datasets.utils import train_val_test_split
 from utils.funcs import print_dict
+import SimpleITK as sitk
 
 
 class bidict(dict):
@@ -121,8 +123,7 @@ class CTInfoDict:
         elif os.path.exists(self.save_path):
             self.load_cached()
         else:
-            print(f"[CTInfoDict] No cached data loaded at: \
-                  \'{self.save_path}\'")
+            print(f"No cached data loaded at: \'{self.save_path}\'")
         pass
 
     def update_info(self,
@@ -134,18 +135,16 @@ class CTInfoDict:
             self.data_dict[name] = info_dict
         pass
 
-    @functools.singledispatch
     def get_info(self, idx: Any):
-        raise NotImplementedError
-
-    @get_info.register(str)
-    def _(self, idx: str):
-        return idx, self.data_dict[idx]
-
-    @get_info.register(int)
-    def _(self, idx: int):
-        key = list(self.data_dict.keys())[idx]
-        return key, self.data_dict[key]
+        if idx in self.data_dict.keys():
+            return idx, self.data_dict[idx]
+        elif isinstance(idx, int):
+            key = list(self.data_dict.keys())[idx]
+            return key, self.data_dict[key]
+        elif osp.isdir(idx) or osp.isfile(idx):
+            info = [(key, value)
+                    for key, value in self.data_dict.items() if value['path'] == idx]
+            return info[0]
 
     def load_cached(self):
         """load cached info dict"""
@@ -197,6 +196,8 @@ class CTInfoDict:
 
 
 class CTDataset(Dataset):
+    __metaclass__ = ABCMeta
+
     """
     optimal dataset backbone 
     key implementation:
@@ -211,21 +212,28 @@ class CTDataset(Dataset):
 
     def __init__(self,
                  root_dir: str,  # for info dict saving
+                 split: str = 'train',
                  name: str = 'dataset',
                  params={}):
         self.name = name
         self.root_dir = root_dir
-        self._split = None
+        self._set_split(split)
         self._ds_info = CTInfoDict(name=name,
                                    root_dir=root_dir,
                                    **params)
-        if not self._ds_info.data_dict:
-            self.register()
+        # _ds_info should be manually init in each dataset
+        # if not self._ds_info.data_dict:
+        #     self.register()
         self.load_funcs = {}
         pass
 
     def __len__(self):
         return len(self._ds_info.data_dict)
+
+    def _set_split(self, split):
+        self._valid_split(split)
+        self._split = split
+        pass
 
     def update_info(self, name, info_dict):
         """
@@ -241,7 +249,7 @@ class CTDataset(Dataset):
     def set_split(self,
                   split='all',
                   ratio=0.1):
-
+        # should be overwritten
         assert split in self.SPLIT_SET, "split invalid"
         if split == 'all':
             return self._ds_info.data_dict
@@ -258,40 +266,15 @@ class CTDataset(Dataset):
             return split_data_dict
 
     def register(self):
-        print(f"[CTDataset] Registering dataset: {self.name}")
+        print(f"Registering dataset: {self.name}")
         self._set_ds_info()
         self._ds_info.save_cache()
         pass
 
-    def _get_ct_path(self, idx, query_type='index'):
-        # get ct path from input idx
-        raise NotImplementedError
-
-    def _get_seg_path(self, idx, query_type='index'):
-        # get seg path from input idx
-        raise NotImplementedError
-
-    # def generate_ds_params(self):
-    #     """
-    #     generate the information for extraction, key function for preprocessing
-    #     e.g. {'...':..., ..., data_dict: {'LIDC-IDRI-0078.1': [...], ...}}
-    #     TODO: will be deprecated
-    #     """
-    #     content_dict = self._ds_info._get_content_dict()
-    #     content_dict['load_func'] = self.load_ct_np
-    #     data_dict = {}  # reformat the data_dict
-    #     for key, value in content_dict['data_dict'].items():
-    #         for nodule_id, centroid in value['centroid_dict'].items():
-    #             name = '.'.join([key, nodule_id])
-    #             path = value['path']
-    #             data_dict[name] = [path, centroid]
-    #     content_dict['data_dict'] = data_dict
-    #     return content_dict
-
     def __str__(self):
         return self._ds_info.__str__()
 
-    def get_info(self, key):
+    def get_info(self, key, query_type='index'):
         if key in self._ds_info.__dict__:
             return getattr(self._ds_info, key)
         else:
@@ -306,16 +289,23 @@ class CTDataset(Dataset):
 
     def load_ct_np(self, idx: Any, query_type='index'):
         """ REQUIRED: to load CT as numpy array, you can define what idx is """
-        ct_path = self._get_ct_path(idx, query_type=query_type)
-        return self.load_funcs['ct'](ct_path)
+        if osp.isdir(idx) or osp.isfile(idx):
+            ct_path = idx
+        else:
+            ct_path = self.get_info(idx, query_type=query_type)['path']
+        img = self.load_funcs['ct'](ct_path)
+        return sitk.GetArrayFromImage(img)
 
     def load_seg_np(self, idx, query_type='index'):
-        seg_path = self._get_ct_path(idx, query_type=query_type)
+        if osp.isdir(idx) or osp.isfile(idx):
+            seg_path = idx
+        else:
+            seg_path = self.get_info(idx, query_type=query_type)['seg_path']
         return self.load_funcs['seg'](seg_path)
 
     def __getitem__(self, idx, query_type='index'):
         return self.load_ct_np(idx), self.get_info(idx)
-    
+
     def load_centroid(self, idx, query_type='index'):
         raise NotImplementedError
 

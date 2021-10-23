@@ -1,6 +1,6 @@
 """ organize embedding dataset, predict, save, load embeddings from all kinds of model on all kinds of datasets """
 
-import json
+import ujson as json  # switch to ujson
 import pandas as pd
 import yaml
 import os
@@ -16,6 +16,8 @@ from models import VAE_MODELS
 
 from utils.funcs import get_order, reorder
 import torch
+
+from utils.python_logger import get_logger
 
 
 class Embedding:
@@ -41,6 +43,7 @@ class Embedding:
             self.file_name = 'embedding.json'
         self.file_dir = osp.join(self.save_dir, self.file_name)
         self.saved = osp.exists(self.file_dir)  # HACK: could be empty
+        self.logger = get_logger(self.__class__.__name__)
         pass
 
     def stack_embedding(self, index_lst: List[str], embedding_lst: List[Union[List, np.ndarray]]):
@@ -55,7 +58,7 @@ class Embedding:
         pass
 
     def save(self, reorder=True, verbose=True):
-        print("saving embedding ...")
+        self.logger.info("saving embedding ...")
         if not osp.exists(self.save_dir):
             os.mkdir(self.save_dir)
         if reorder:
@@ -63,8 +66,8 @@ class Embedding:
         with open(self.file_dir, 'w') as f:
             json.dump(self._data, f)
         if verbose:
-            print(f"{len(self._data['index'])} \
-                embeddings saved to {osp.join(self.save_dir, self.file_name)}")
+            self.logger.info(
+                f"{len(self._data['index'])} embeddings saved to {osp.join(self.save_dir, self.file_name)}")
         pass
 
     def reorder_embeddings(self):
@@ -121,12 +124,13 @@ class Embedding:
 class EmbeddingPredictor(BaseEvaluator):
 
     def __init__(self,
-                 base_model_name: str,
                  log_name: str,
-                 version: int):
+                 version: int,
+                 base_model_name: str = 'VAE3D'):
         super().__init__(log_name=log_name,
                          version=version,
                          base_model_name=base_model_name)
+        self.logger = get_logger(self.__class__.__name__)
 
     def predict_embedding(self,
                           dataloader,
@@ -138,8 +142,7 @@ class EmbeddingPredictor(BaseEvaluator):
         """
         embedding = Embedding(self.log_name, self.version, split)
         dataloader = self._parse_dataloader(dataloader, dl_params=dl_params)
-        print(f"[EmbeddingPredictor] Predicting embeddings \
-            for {len(dataloader)} images")
+        self.logger.info(f"Predicting embeddings for {len(dataloader)} images")
         for batch, file_names in tqdm(dataloader):
             name_batch = [fn.replace('.nrrd', '') for fn in file_names]
             encoded = self.module.model.encode(batch)

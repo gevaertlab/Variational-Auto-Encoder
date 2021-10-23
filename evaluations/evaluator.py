@@ -1,17 +1,14 @@
-import json
+import os
+import os.path as osp
+import re
+from typing import Any, List
+
 import torch
 import yaml
-import os
-import re
-import os.path as osp
-from typing import Any, List, Union
-from tqdm import tqdm
-import numpy as np
 from configs.config_vars import BASE_DIR
 from experiment import VAEXperiment
 from models import VAE_MODELS
-
-from utils.custom_metrics import SSIM, MSE, PSNR
+from tqdm import tqdm
 
 
 class BaseEvaluator:

@@ -15,7 +15,7 @@ def param_parser():
     parser.add_argument('--dataset',  '-r',
                         dest="dataset",
                         help='name of the dataset, defined in CT_DATASETS',
-                        default='LIDCDataset')
+                        default='LNDbDataset')
     parser.add_argument('--aug_param',  '-a',
                         dest="aug_param",
                         help='augmentation parameters (filename) for '
@@ -24,11 +24,11 @@ def param_parser():
     parser.add_argument('--save_dir',  '-S',
                         dest="save_dir",
                         help="save directory of converted patches",
-                        default='TCIA_LIDC/LIDC-patch-32_aug')  # NOTE: debug
+                        default='LNDb/LNDb-patch-aug')  # NOTE: debug
     parser.add_argument('--vis_dir',  '-V',
                         dest="vis_dir",
                         help="visualization directory of converted patches",
-                        default='TCIA_LIDC/LIDC-patch-visualization-32_aug')  # NOTE: debug
+                        default='LNDb/LNDb-patch-visualization-32_aug')  # NOTE: debug
     parser.add_argument('--size',  '-s',
                         dest="size",
                         help="size of the patches",
@@ -58,8 +58,8 @@ def param_parser():
 if __name__ == "__main__":
     args = param_parser()
     # dataset registration
-    ds = CT_DATASETS[args.dataset](
-        params={"save_path": "/labs/gevaertlab/data/lung cancer/TCIA_LIDC/lidc_info_dict.json"})
+    # LIDC_info_path = {"save_path": "/labs/gevaertlab/data/lung cancer/TCIA_LIDC/lidc_info_dict.json"}
+    ds = CT_DATASETS[args.dataset]()
     # augmentation parameters
     aug_param = AUG_PARAMS[args.aug_param]  # defined in aug_params
     # extract patches

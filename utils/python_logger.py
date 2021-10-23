@@ -3,12 +3,18 @@
 import logging
 
 
-def get_logger(module, cls_name, create_file=False):
-    logger = logging.getLogger(module)
+def get_logger(cls_name=None, create_file=False):
+    logger = logging.getLogger(cls_name)
     logger.setLevel(level=logging.INFO)
 
-    formatter = logging.Formatter(
-        f"[%(asctime)10s | {module}:{cls_name:<10s}] %(message)s")
+    if cls_name:
+        formatter = logging.Formatter(
+            "[%(asctime)8s | %(module)s:%(name)10s] %(message)s",
+            datefmt="%m-%d %H:%M:%S")
+    else:
+        formatter = logging.Formatter(
+            "[%(asctime)8s | %(module)s:%(funcName)10s] %(message)s",
+            datefmt="%m-%d %H:%M:%S")
 
     if create_file:
         file_handler = logging.FileHandler('file.log')

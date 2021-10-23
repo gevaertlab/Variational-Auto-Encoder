@@ -35,7 +35,7 @@ class PatchExtract:
                  debug=False):
         self.patch_size = patch_size
         self.dataset = dataset
-        self.ds_params = self.dataset.generate_ds_params()  # deprecated
+        # self.ds_params = self.dataset.generate_ds_params()  # deprecated
         self.debug = debug  # debug flag, whether to output example images
         self.augmentation_params = augmentation_params
         if augmentation_params:

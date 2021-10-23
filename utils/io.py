@@ -35,8 +35,15 @@ def load_dcm(img_path):
 
 def load_mhd(img_path):
     img = sitk.ReadImage(img_path)
-    np_img = sitk.GetArrayFromImage(img)
-    return np_img
+    return img
+
+
+def load_meta(img_path):
+    reader = sitk.ImageFileReader()
+    reader.SetFileName(img_path)
+    reader.ReadImageInformation()
+    meta = {k: reader.GetMetaData(k) for k in reader.GetMetaDataKeys()}
+    return meta
 
 
 @singledispatch
@@ -66,4 +73,10 @@ def _(img: sitk.Image, save_path: str, verbose=0):
 def _(img: np.ndarray, save_path: str, verbose=0):
     img = sitk.GetImageFromArray(img)
     save_as_nrrd(img, save_path, verbose)
+    pass
+
+
+def mkdir_safe(dir):
+    if not os.path.exists(dir):
+        os.mkdir(dir)
     pass

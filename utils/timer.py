@@ -15,9 +15,9 @@ class Timer:
         self.counting = False
         if name:
             module_name, class_name = name
-            self.logger = get_logger(module_name, class_name)
+            self.logger = get_logger(class_name)
         else:
-            self.logger = get_logger(__file__, self.__class__.__name__)
+            self.logger = get_logger(self.__class__.__name__)
         pass
 
     def start(self):

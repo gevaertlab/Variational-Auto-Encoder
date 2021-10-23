@@ -21,7 +21,7 @@ def parse_config():
                         dest="filename",
                         metavar='FILE',
                         help='config file name in /configs folder',
-                        default='vae32_aug')
+                        default='exp_new/vae32aug_exp')
 
     args = parser.parse_args()
     config = process_config(args.filename)

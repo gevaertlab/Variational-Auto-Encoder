@@ -2,7 +2,7 @@
 
 
 from collections import UserDict
-import json
+import ujson as json  # switch to ujson
 from typing import Optional, Union
 import os
 import numpy as np

@@ -4,6 +4,7 @@
 from .ct import (CTDataset,
                  CTCachedDataset,
                  LIDCDataset,
+                 LNDbDataset,
                  LIDCCachedDataset)
 
 from .patch import (LIDCPatchAugDataset,
@@ -17,4 +18,5 @@ PATCH_DATASETS = {'LIDCPatchDataset': LIDCPatchDataset,
                   'LIDCPatchLabelDataset': LIDCPatchLabelDataset}
 
 
-CT_DATASETS = {'LIDCDataset': LIDCDataset}
+CT_DATASETS = {'LIDCDataset': LIDCDataset,
+               'LNDbDataset': LNDbDataset}

@@ -36,8 +36,9 @@ class LIDCDataset(CTDataset):
                          name=name,
                          params=params)
         if not self._ds_info.data_dict or reset_info:
-            self._set_ds_info()
+            self._set_ds_info()  # not saving this
         self.load_funcs['ct'] = load_dcm
+        self._scans = pl.query(pl.Scan)
         pass
 
     def _set_ds_info(self):
@@ -46,11 +47,10 @@ class LIDCDataset(CTDataset):
         NOTE: more or less standardized way to do it, need get_centroid_dict that takes
         arbitary argument and can return centroids = {nodule.id: [x, y, z], ...}
         """
-        scans = pl.query(pl.Scan)
-        for i in tqdm(range(scans.count())):
-            pid = scans[i].patient_id
-            path = scans[i].get_path_to_dicom_files()
-            centroid_dict = self.get_centroid_dict(scans[i])
+        for i in tqdm(range(self._scans.count())):
+            pid = self._scans[i].patient_id
+            path = self._scans[i].get_path_to_dicom_files()
+            centroid_dict = self.load_centroid(i)
             self.update_info(pid, {'pid': pid,
                                    'path': path,
                                    'index': i,
@@ -80,8 +80,11 @@ class LIDCDataset(CTDataset):
         return super().load_ct_np(idx)
 
     def load_centroid(self, idx, query_type='index'):
-        # TODO: check if this can work
-        return self._ds_info.get_info(idx)['centroid']
+        try:
+            return self._ds_info.get_info(idx)['centroid']
+        except KeyError:
+            scan = self._scans[idx]
+            return self.get_centroid_dict(scan)
 
     def get_patient_id(self, file_path):
         '''
