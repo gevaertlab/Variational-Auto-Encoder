@@ -107,6 +107,6 @@ class Exporter(EmbeddingPredictor):  # inherited from BaseEvaluator
 
     def save_csv(self, data, save_path: str):
         df = pd.DataFrame(data)
-        df.to_csv(save_path)
+        df.to_csv(save_path, index=False)
         self.logger.info(f"saved to {save_path}")
         pass
