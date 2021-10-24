@@ -1,4 +1,4 @@
-""" train perceptual network """
+""" train perceptual network: developing """
 
 
 import os

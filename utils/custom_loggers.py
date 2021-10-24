@@ -1,4 +1,6 @@
-from typing import Any, Dict, Optional, Union
+import logging
+import datetime
+from typing import Optional
 from pytorch_lightning.loggers import CSVLogger, TestTubeLogger
 from pytorch_lightning.utilities import _module_available
 import pandas as pd
@@ -107,6 +109,18 @@ class VAELogger(TestTubeLogger):
                                         'learning rate': lr_dict},
                                   name="diagnostic_loss_curve.jpeg")
 
+    def add_notes(self):
+        # add notes to config_file
+        # 1. add time used
+        log = self._load_log_file()
+        time_col = self._get_vis_loss_dict(log, "created_at")
+        time_col['loss'] = [datetime.datetime.strptime(
+            tstr, '%Y-%m-%d %H:%M:%S.%f') for tstr in time_col['loss']]
+        time_used = str(max(time_col['loss']) -
+                        min(time_col['loss'])).split('.')[0]
+        print(f"time used: {time_used}")
+        self.config_file['trainer_params']['time_used'] = time_used
+
     def finalize(self, status: str):  # -> None
         super().finalize(status)
         self.experiment.debug = self.debug
@@ -115,6 +129,7 @@ class VAELogger(TestTubeLogger):
         self.draw_loss_curve()
         self.draw_kl_recon_loss()
         self.draw_multiple_loss_curves()
+        self.add_notes()
         saveConfig(log_dir, self.config_file)
         self.save()
         self.close()

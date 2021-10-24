@@ -1,16 +1,15 @@
 from abc import abstractmethod
 
-import torch
 from torch import nn
 from torch.nn import functional as F
 
 from ._type import *
 
 
-class VAESkeleton(nn.Module):
+class VAEBackbone(nn.Module):
 
     def __init__(self) -> None:
-        super(VAESkeleton, self).__init__()
+        super(VAEBackbone, self).__init__()
 
     def encode(self, input: Tensor) -> List[Tensor]:
         raise NotImplementedError
@@ -18,7 +17,7 @@ class VAESkeleton(nn.Module):
     def decode(self, input: Tensor) -> Any:
         raise NotImplementedError
 
-    def sample(self, batch_size:int, current_device: int, **kwargs) -> Tensor:
+    def sample(self, batch_size: int, current_device: int, **kwargs) -> Tensor:
         raise RuntimeWarning()
 
     def generate(self, x: Tensor, **kwargs) -> Tensor:
@@ -29,5 +28,5 @@ class VAESkeleton(nn.Module):
         pass
 
     @abstractmethod
-    def loss_function(self, *inputs: Any, **kwargs) -> Tensor:
+    def loss_function(self, *inputs: Any, **kwargs) -> dict:
         pass

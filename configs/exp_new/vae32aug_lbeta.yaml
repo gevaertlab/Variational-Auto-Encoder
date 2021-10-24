@@ -3,7 +3,7 @@ model_params:
   in_channels: 1
   latent_dim: 1024
   hidden_dims: [2, 4, 16, 128]
-  beta: 0.00001
+  beta: 1.0e-04
 
 exp_params:
   dataset: LIDCPatchAugDataset
@@ -14,7 +14,7 @@ exp_params:
   final_div_factor: 10000
 
 trainer_params:
-  max_epochs: 500
+  max_epochs: 120
   check_val_every_n_epoch: 10
 
 logging_params:

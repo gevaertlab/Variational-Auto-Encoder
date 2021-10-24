@@ -1,4 +1,5 @@
 ''' some functions for augmentation purposes '''
+from typing import Dict, List, Tuple
 import SimpleITK as sitk
 import numpy as np
 import matplotlib.pyplot as plt
@@ -41,7 +42,7 @@ class Augmentation:
         return (img, self._shift_cp(center_point, value, axis))
 
     @staticmethod
-    def _shift_cp(point, value, axis):
+    def _shift_cp(point: Tuple, value: int, axis: int):
         """calculate shift point
 
         Args:
@@ -52,8 +53,10 @@ class Augmentation:
         Returns:
             [tuple]: [new coord]
         """
-        point[axis] += value
-        return point
+        new_point = list(point)
+        new_point[axis] += value
+        new_point = tuple(new_point)
+        return new_point
 
     def rotate(self, img, center_point, params, random_seed=None):
         """
@@ -93,25 +96,27 @@ class Augmentation:
         # return original image first
         yield img, center_point
         # for a augmentation process, repeat how many times.
-        for process, times in self.params:
-            # initialize random seed for each process
-            curr_seed = random_seed
-            for time in range(times):
-                aug_img, aug_cp = self.augment(img,
-                                               center_point,
-                                               process,
-                                               random_seed=curr_seed)
-                # potential debugging
-                if self.debug:
-                    # debug mode
-                    self.vis_patch_aug([img, center_point],
-                                       [aug_img, aug_cp],
-                                       time)
-                yield aug_img, aug_cp
-                if curr_seed:
-                    curr_seed += 1
-                else:
-                    curr_seed = None
+        # for process, repeat in self.params:
+        process, repeat = self.params
+        # initialize random seed for each process
+        curr_seed = random_seed
+        for time in range(repeat):
+            aug_img, aug_cp = self.augment(img,
+                                           center_point,
+                                           process,
+                                           random_seed=curr_seed)
+            # potential debugging
+            if self.debug:
+                # debug mode
+                self.vis_patch_aug([img, center_point],
+                                   [aug_img, aug_cp],
+                                   time)
+            yield aug_img, aug_cp
+            if curr_seed:
+                curr_seed += 1
+            else:
+                curr_seed = None
+        pass
 
     def augment(self, img, center_point, process, random_seed=None):
         # initialize img and center point each time
@@ -129,7 +134,6 @@ class Augmentation:
                       origin_img_n_center,
                       aug_img_n_center,
                       time):
-        # TODO: logging system to every file
         [org_img, org_cp], [aug_img, aug_cp] = origin_img_n_center, aug_img_n_center
         fig, ax = plt.subplots(2, 1)
         ax[0].imshow(org_img)
@@ -140,5 +144,29 @@ class Augmentation:
         ax[1].annotate(aug_cp, "center_point")
         plt.savefig(f'/labs/gevaertlab/users/yyhhli/code/debug/aug_{str(time)}',
                     dpi=300)
-        # TODO: logging system to every file
         pass
+
+
+def calc_crop_size(patch_size: Tuple, aug_params: List)  :
+    """
+    calculate crop size before augmentation
+    NOTE: this size calculation highly depends on the type and 
+    parameters of the augmentation process
+    return size
+    """
+    new_range = 0
+
+    # shift
+    shift = [op for op in aug_params[0] if op[0] == 'shift']
+    shift_ranges = sum([list(op[1]['range']) for op in shift], [])
+    max_range = 0 if not shift_ranges else int(np.max(np.abs(shift_ranges)))
+    new_range += max_range
+
+    # rotation
+    extended = np.ceil(np.max(patch_size) * 1.732).astype(int) - \
+        np.min(patch_size)  # sqrt3
+    new_range += extended
+
+    # make new size
+    new_size = tuple(map(sum, zip(patch_size, [new_range]*len(patch_size))))
+    return new_size

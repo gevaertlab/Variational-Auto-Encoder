@@ -6,15 +6,18 @@ import torch.backends.cudnn as cudnn
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 
-from configs.parse_configs import parse_config
+from configs.parse_configs import parse_config, process_config
 from configs.config_vars import BASE_DIR
 from experiment import VAEXperiment
 from models import VAE_MODELS
 from utils.custom_loggers import VAELogger  # logger
 
-if __name__ == '__main__':
 
-    config = parse_config()
+def main(config_name=None):
+    if config_name:
+        config = process_config(config_name)
+    else:
+        config = parse_config()
 
     vae_logger = VAELogger(
         save_dir=config['logging_params']['save_dir'],
@@ -57,3 +60,12 @@ if __name__ == '__main__':
 
     # train
     runner.fit(experiment)
+
+    pass
+
+
+if __name__ == '__main__':
+
+    main()
+    
+    pass

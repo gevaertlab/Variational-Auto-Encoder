@@ -2,12 +2,13 @@
 
 import functools
 from configs.config_vars import BASE_DIR
-from typing import List
+from typing import Any, List
 import os
 import numpy as np
 import pylidc as dc
 from multiprocessing import Pool, cpu_count
-from utils.funcs import reorder, get_order, Timer, sort_dict
+from utils.funcs import reorder, get_order, sort_dict
+from utils.timer import Timer
 
 
 class Label:
@@ -20,7 +21,7 @@ class Label:
         self.log_dir = log_dir
         self.save_path = self._get_save_path()
         self._data = {}
-        self.timer = Timer()
+        self.timer = Timer((__file__, self.__class__.__name__))
         self._advance_init()
         pass
 
@@ -52,9 +53,9 @@ class Label:
 
     def save_labels(self):
         """ save matched label as npy file """
-        data = {'data_names': self.data_names,
-                'labels': self.labels}
-        np.save(self.save_path, data)
+        # data = {'data_names': self.data_names,
+        #         'labels': self.labels}
+        np.save(self.save_path, self._data)
         print(f"saved to {self.save_path}")
         pass
 
@@ -64,25 +65,14 @@ class Label:
         return data
 
     @functools.singledispatch
-    def get_labels(self, data_name: any):
-        raise NotImplementedError
-
-    @get_labels.register(str)
-    def _(self, data_names: str):
-        """
-        get label from a single data_name
-        """
-        return self.get_labels([data_names])[0]
-
-    @get_labels.register(list)
-    def _(self, data_names: list):
+    def get_labels(self, data_name: list):
         """ 
         get labels from 2 approaches 
         1. load
         2. match
         """
         # first match those that are not included in self._data
-        new_names = [n for n in data_names if n not in self._data]
+        new_names = [n for n in data_name if n not in self._data]
         if new_names:
             new_labels = self.match_labels(new_names)
             new_dict = {n: l for n, l in zip(new_names, new_labels)}
@@ -90,7 +80,14 @@ class Label:
             self._data = sort_dict(self._data)
             self.save_labels()
         # return
-        return [self._data[key] for key in data_names]
+        return [self._data[key] for key in data_name]
+
+    @get_labels.register(str)
+    def _(self, data_name: str):
+        """
+        get label from a single data_name
+        """
+        return self.get_labels([data_name])[0]
 
     def reorder_labels(self, data_names: List, split='train', replace=True):
         """ reorder labels according to data_names """

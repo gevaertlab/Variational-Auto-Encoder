@@ -18,6 +18,8 @@ from sklearn.metrics import mean_absolute_error, mean_absolute_percentage_error,
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, roc_auc_score, average_precision_score
 from typing import Dict
 
+from applications.tasks import TaskBase
+
 
 REGRESSION_METRIC_DICT = {'MAE': mean_absolute_error,
                           'MAPE': mean_absolute_percentage_error,
@@ -47,12 +49,14 @@ li_reg = {'basemodel': partial(ElasticNet, **RANDOM_DICT),
 rfr = {'basemodel': partial(RandomForestRegressor, **RANDOM_DICT, **NJOB_DICT),
        'params': dict(n_estimators=[10, 100, 200])}
 
-svr = {'basemodel': SVR,
+svr = {'basemodel': partial(SVR, max_iter=1000),  # efficiency
        'params': dict(degree=[3, 5, 7], C=[0.1, 1, 10], epsilon=[0.01, 0.1, 1])}
 
-mlpr = {'basemodel': partial(MLPRegressor, **RANDOM_DICT, early_stopping=True),
-        'params': dict(hidden_layer_sizes=[(100, 10), (100, 20), (200, 20), (400, 40)],
-                       max_iter=[2000])}
+mlpr = {'basemodel': partial(MLPRegressor, **RANDOM_DICT, early_stopping=True, max_iter=2000),
+        'params': dict(hidden_layer_sizes=[(100, 10),
+                                           (100, 20),
+                                           (200, 20),
+                                           (400, 40)])}
 
 gboost = {'basemodel': partial(GradientBoostingRegressor, **RANDOM_DICT),
           'params': dict(learning_rate=[0.01],
@@ -71,14 +75,14 @@ lr = {'basemodel': partial(LogisticRegression, penalty='elasticnet', solver='sag
 knn = {'basemodel': partial(KNeighborsClassifier, **NJOB_DICT),
        'params': dict(n_neighbors=[3, 5, 7, 10], p=[1, 1, 5, 2])}
 
-svc = {'basemodel': partial(SVC, **RANDOM_DICT, probability=True),
+svc = {'basemodel': partial(SVC, **RANDOM_DICT, probability=True, max_iter=1000),
        'params': dict(C=[0.01, 0.1, 1], degree=[1, 2, 3])}
 
 rf = {'basemodel': partial(RandomForestClassifier, **RANDOM_DICT, **NJOB_DICT),
       'params': dict(n_estimators=[10, 100, 200])}
 
-mlp = {'basemodel': partial(MLPClassifier, **RANDOM_DICT, early_stopping=True),
-       'params': dict(hidden_layer_sizes=[(100, 10), (100, 20), (200, 20), (400, 40)], max_iter=[2000])}
+mlp = {'basemodel': partial(MLPClassifier, **RANDOM_DICT, early_stopping=True, max_iter=2000),
+       'params': dict(hidden_layer_sizes=[(100, 10), (100, 20), (200, 20), (400, 40)])}
 
 
 CLASSIFICATION_MODELS = {'logistic_regression': lr,
@@ -127,11 +131,11 @@ def find_best_param(model_meta, X, Y, hparams={}, search=True, verbose=1):
         return hparams
 
 
-def predictWithModel(X: Dict,
-                     Y: Dict,
-                     task_type: str = 'classification',
+def predictWithModel(task: TaskBase,
+                     X, Y,
                      model_name: str = 'random_forest',
                      hparam_dict={},
+                     tune_hparams=True,
                      verbose=True):
     """
     Make predictions with one type of model, hparams are tuned, model results are returned
@@ -145,49 +149,56 @@ def predictWithModel(X: Dict,
     Returns:
         Dict: metrics
     """
+
     if verbose:
         print(f"======{model_name}======")
-    assert task_type in ['classification', 'regression']
+    assert task.task_type in ['classification', 'regression']
 
-    # 1. hparams, either load or search
-    model_meta = MODELS[task_type][model_name]
+    x_trans, y_trans = task.transform(X, Y)
+
+    # 1. hparams, either load or search or skip
+    model_meta = MODELS[task.task_type][model_name]
     has_key = model_name in hparam_dict.keys()
     if has_key:
         hparams = hparam_dict[model_name]
     else:
         hparams = {}
-    best_params = find_best_param(model_meta, X, Y,
+    best_params = find_best_param(model_meta, x_trans, y_trans,
                                   hparams=hparams,
-                                  search=not has_key)
-
+                                  search=(not has_key) and tune_hparams)  # NOTE
+    if not tune_hparams:  # HACK
+        best_params = {}
     # 2. train model
     model = model_meta['basemodel'](
-        **best_params).fit(X['train'], Y['train'])
+        **best_params).fit(x_trans['train'], y_trans['train'])
 
     # 3. evaluation
-    if task_type == 'regression':
-        y_true, y_pred = Y['val'], model.predict(X['val'])
+    if task.task_type == 'regression':
+        y_true, y_pred = Y['val'], \
+            task.inverse_transform(Y=model.predict(x_trans['val']))
         metrics = modelEvaluation(y_true=y_true,
                                   y_pred=y_pred,
                                   y_proba=None,
                                   y_decision=None,
                                   scoring_func_dict=REGRESSION_METRIC_DICT,
-                                  task_type=task_type)
+                                  task_type=task.task_type)
         # print training results to see if the model can overfit
+        y_train_true, y_train_pred = Y['train'], \
+            task.inverse_transform(Y=model.predict(x_trans['train']))
         train_metrics = modelEvaluation(y_true=Y['train'],
-                                        y_pred=model.predict(X['train']),
+                                        y_pred=y_train_pred,
                                         y_proba=None,
                                         y_decision=None,
                                         scoring_func_dict=REGRESSION_METRIC_DICT,
-                                        task_type=task_type)
+                                        task_type=task.task_type)
         print("Result for training set:", train_metrics)
         return metrics, y_pred, best_params
 
-    elif task_type == 'classification':
+    elif task.task_type == 'classification':
         y_true = Y['val']
-        y_pred = model.predict(X['val'])
+        y_pred = model.predict(x_trans['val'])
         # multiclass, should not limit class
-        y_proba = model.predict_proba(X['val'])
+        y_proba = model.predict_proba(x_trans['val'])
         # y_decision = model.decision_function(X['val'])
         y_decision = None
         metrics = modelEvaluation(y_true=y_true,
@@ -195,26 +206,27 @@ def predictWithModel(X: Dict,
                                   y_proba=y_proba,
                                   y_decision=y_decision,
                                   scoring_func_dict=CLASSIFICATION_METRIC_DICT,
-                                  task_type=task_type)
+                                  task_type=task.task_type)
         # print training results to see if the model can overfit
         train_metrics = modelEvaluation(y_true=Y['train'],
-                                        y_pred=model.predict(X['train']),
+                                        y_pred=model.predict(x_trans['train']),
                                         y_proba=model.predict_proba(
-                                            X['train']),
+                                            x_trans['train']),
                                         y_decision=None,
                                         scoring_func_dict=CLASSIFICATION_METRIC_DICT,
-                                        task_type=task_type)
+                                        task_type=task.task_type)
         print("Result for training set:", train_metrics)
         return metrics, y_pred, {'y_proba': y_proba, 'y_decision': y_decision}, best_params
 
 
-def predictTask(X: Dict, Y: Dict,
-                task_type: str = 'classification',
+def predictTask(task: TaskBase,
+                X, Y,
                 models='all',
                 hparam_dict={},
                 results=[],
+                tune_hparams=True,
                 verbose=True):
-    prediction_models = MODELS[task_type]
+    prediction_models = MODELS[task.task_type]
     if models == 'all':
         models = list(prediction_models.keys())
     if results:
@@ -225,16 +237,18 @@ def predictTask(X: Dict, Y: Dict,
         pred_dict['true'] = Y['val']
 
     for model_name in models:
-        model_result = predictWithModel(X, Y, task_type,
-                                        model_name,
+        model_result = predictWithModel(task=task,
+                                        X=X, Y=Y,
+                                        model_name=model_name,
                                         hparam_dict=hparam_dict,
+                                        tune_hparams=tune_hparams,
                                         verbose=verbose)
-        if task_type == "classification":
+        if task.task_type == "classification":
             result_dict[model_name], \
                 pred_dict[model_name], \
                 pred_stats[model_name], \
                 best_hparams[model_name] = model_result
-        elif task_type == "regression":
+        elif task.task_type == "regression":
             result_dict[model_name], \
                 pred_dict[model_name], \
                 best_hparams[model_name] = model_result

@@ -93,3 +93,4 @@ def _(img: np.ndarray,
     return img[start_pos[0]:start_pos[0]+size[0],
                start_pos[1]:start_pos[1]+size[1],
                start_pos[2]:start_pos[2]+size[2]]
+

@@ -1,29 +1,37 @@
 ''' This file provides util functions to visualize various type of data '''
-import matplotlib
-import math
+# import inspect
+# import math
 import os
+import os.path as osp
 from typing import Dict, Union
 
+# import cv2
+import matplotlib
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
+from matplotlib.patches import Patch
 import numpy as np
 import pandas as pd
 import seaborn as sns
 import SimpleITK as sitk
 import torchvision.utils as vutils
-from matplotlib.ticker import MultipleLocator, ScalarFormatter
+# from matplotlib.ticker import MultipleLocator, ScalarFormatter
 from mpl_toolkits import axisartist
 from mpl_toolkits.axes_grid1 import host_subplot
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
-from sklearn.utils.multiclass import unique_labels
-from .funcs import Timer
-import cv2
+# from sklearn.utils.multiclass import unique_labels
+
+from utils.python_logger import get_logger
+
+from .timer import Timer
 
 plt.style.use('ggplot')
 plt.ioff()  # Turn off interactive mode
 matplotlib.use('Agg')
+
+logger = get_logger()
 
 
 def flatten_list(_2d_list):
@@ -201,14 +209,18 @@ def residual_plot(y_true, y_pred, save_dir='/home/yyhhli/temp.jpeg'):
 
 
 def ytrue_ypred_scatter(pred_dict, save_dir='/home/yyhhli/temp.jpeg'):
+    # need to get rid of empty entries first
+    pred_dict = {k: v for (k, v) in pred_dict.items() if len(v)}
     fig = plt.figure(figsize=(6, 6))
     ax = fig.add_subplot(111)
     ax.set_aspect('equal')
     y_true = pred_dict['true']
     ax.set_aspect('equal')
     for model_name, pred in pred_dict.items():
-        if model_name != "true":
-            plt.scatter(y_true, pred, label=model_name)
+        if model_name != "true" and model_name != "__dict":
+            plt.scatter(x=y_true, y=pred, label=model_name)
+            plt.xlabel("Y True")
+            plt.ylabel("Y Pred")
     lims = [
         np.min([ax.get_xlim(), ax.get_ylim()]),  # min of both axes
         np.max([ax.get_xlim(), ax.get_ylim()]),  # max of both axes
@@ -259,6 +271,8 @@ def confusion_matrix_subplot(y_true,
 
 
 def confusion_matrix_models(pred_dict, save_dir, classes=list(range(1, 6))):
+    # need to get rid of empty entries first
+    pred_dict = {k: v for (k, v) in pred_dict.items() if len(v)}
     model_names = list(pred_dict.keys())
     model_names.remove('true')
     y_true = pred_dict['true']
@@ -282,7 +296,7 @@ def confusion_matrix_models(pred_dict, save_dir, classes=list(range(1, 6))):
                                      ax=ax,
                                      title=model_names[i],
                                      classes=classes)
-        plt.savefig(save_dir, dpi=400)
+        plt.savefig(save_dir, dpi=200)
         plt.close()
         print(f"Visualized at {save_dir}")
         pass
@@ -344,7 +358,7 @@ def vis_tsne(data: np.ndarray,
              save_path: str,
              label_name='NA',
              label_numeric=False):
-    timer = Timer()
+    timer = Timer((osp.basename(__file__), "vis_tsne"))
     timer()
     tsne = TSNE(n_components=2, verbose=1, perplexity=40, n_iter=300)
     tsne_results = tsne.fit_transform(data)
@@ -401,5 +415,48 @@ def vis_heatmap(data: np.ndarray,
     plt.tight_layout()
     plt.savefig(save_path, dpi=200)
     plt.close()
-    print(f"Visualized at {save_path}")
+    logger.info(f"Visualized at {save_path}")
     pass
+
+
+def vis_clustermap(data: Dict[str, np.ndarray],
+                   xlabel: str = None,
+                   ylabel: str = None,
+                   task_name: str = None,
+                   row_cmap: str = "Spectral",
+                   save_path: str = '/home/yyhhli/clustermap.jpeg'):
+    # draw heatmap with clustering using clustermap
+    plt.figure(figsize=(5, 5))
+    [xname, yname] = list(data.keys())
+    X, Y = data[xname], data[yname]
+    # creat cmap for row colors (not for the heatmap)
+    row_cmap = get_cmap(Y, row_cmap)
+    sns.clustermap(X, cmap="vlag", row_colors=[row_cmap[k] for k in Y])
+    if xlabel:
+        plt.xlabel(xlabel)
+    if ylabel:
+        plt.ylabel(ylabel)
+    # add legend for row_colors
+    handles = [Patch(facecolor=row_cmap[cls]) for cls in row_cmap]
+    plt.legend(handles,
+               row_cmap,
+               title=task_name,
+               bbox_to_anchor=(1, 1),
+               bbox_transform=plt.gcf().transFigure,
+               loc='upper right')
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=200)
+    plt.close()
+    logger.info(f"Visualized at {save_path}")
+    pass
+
+
+def get_cmap(data: np.ndarray, cmap: str):
+    if isinstance(data, list):
+        udata = list(set(data))
+    else:
+        logger.error(f"not implemented case: {type(data)}")
+        raise NotImplementedError
+    cmap = matplotlib.cm.get_cmap(cmap)
+    step = 1 / len(udata)
+    return {uvalue: cmap((i + 1/2) * step) for (i, uvalue) in enumerate(udata)}

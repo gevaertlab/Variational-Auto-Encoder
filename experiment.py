@@ -5,16 +5,16 @@ import pytorch_lightning as pl
 from torch import optim
 from torch.utils.data import DataLoader
 
-from datasets import REGISTERED_DATASETS
+from datasets import PATCH_DATASETS
 from datasets.utils import sitk2tensor
 from models._type import Tensor
-from models.vae_base import VAESkeleton
+from models.vae_base import VAEBackbone
 from utils.visualization import vis3d_tensor
 
 
 class VAEXperiment(pl.LightningModule):
 
-    def __init__(self, vae_model: VAESkeleton, params: dict):  # -> None
+    def __init__(self, vae_model: VAEBackbone, params: dict):  # -> None
         super(VAEXperiment, self).__init__()
 
         self.model = vae_model
@@ -23,7 +23,7 @@ class VAEXperiment(pl.LightningModule):
         self.hold_graph = False
         self.dataloader_params = {'num_workers': 4,
                                   'pin_memory': True}
-        self.dataset = REGISTERED_DATASETS[params['dataset']]
+        self.dataset = PATCH_DATASETS[params['dataset']]
         pass
 
     def forward(self, input: Tensor, **kwargs):  # -> Tensor

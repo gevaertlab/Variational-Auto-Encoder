@@ -1,9 +1,12 @@
 """ patch dataset base """
-import numpy as np
-from torch.utils.data import ConcatDataset, Dataset
-import SimpleITK as sitk
 import os
-from .utils import train_val_test_split
+
+import numpy as np
+import SimpleITK as sitk
+from datasets.utils import train_val_test_split
+from datasets.ct import CTDataset
+from torch.utils.data import ConcatDataset, Dataset
+from torchvision import transforms
 
 
 class PatchDataset(Dataset):
@@ -81,3 +84,19 @@ class PatchDataset(Dataset):
     def _list_index(lst, idx_lst):
         sorted_idx = sorted(idx_lst)
         return list(np.array(lst)[sorted_idx])
+
+
+class PatchDynamicDataset(Dataset):  # TODO: finish this
+
+    def __init__(self,
+                 ct_dataset: CTDataset,
+                 transform: transforms):
+        self.ct_dataset = ct_dataset
+        self.transform = transform
+        pass
+
+    def __len__(self):
+        return self.ct_dataset.__len__()
+
+    def __getitem__(self, idx: int):
+        raise NotImplementedError
