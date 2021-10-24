@@ -28,15 +28,16 @@ if __name__ == '__main__':
         task_names = TASK_NAMES
     elif not all(t in TASK_NAMES for t in args.tasks):
         raise ValueError(
-            f"{str(set(TASK_NAMES) - set(args.tasks))} not in known task names")
+            f"{str(set(TASK_NAMES) - set(args.tasks))} not in known task names"
+            )
     else:
         task_names = [args.tasks]
 
     for task_name in task_names[1:]:
         app = Application(args.log_name, args.version, task_name=task_name)
-        # if 'both' in args.command or 'task_predict' in args.command:
-        #     app.task_prediction(tune_hparams=False, models=args.models)
-        #     app.save_results()
-        #     app.draw_dignosis_figure()
+        if 'both' in args.command or 'task_predict' in args.command:
+            app.task_prediction(tune_hparams=False, models=args.models)
+            app.save_results()
+            app.draw_dignosis_figure()
         app.visualize()
     pass

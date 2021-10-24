@@ -92,7 +92,7 @@ class Exporter(EmbeddingPredictor):  # inherited from BaseEvaluator
 
     def save_for_r(self, save_dir: str):
         # save embedding as two csvs
-        # save label_dict into one csv
+        # save label_dict into two csvs (train + val)
 
         embeddings, data_names, label_dict = self.get_data()
 
@@ -102,7 +102,15 @@ class Exporter(EmbeddingPredictor):  # inherited from BaseEvaluator
             save_dir, "embeddings_train.csv"))
         self.save_csv(embeddings['val'], osp.join(
             save_dir, "embeddings_val.csv"))
-        self.save_csv(label_dict, osp.join(save_dir, "label_dict.csv"))
+
+        # label_dict
+        label_dict_train = {name: label_dict[name]['train']
+                            for name in list(label_dict.keys())}
+        label_dict_val = {name: label_dict[name]['val']
+                          for name in list(label_dict.keys())}
+        self.save_csv(label_dict_train, osp.join(
+            save_dir, "label_dict_train.csv"))
+        self.save_csv(label_dict_val, osp.join(save_dir, "label_dict_val.csv"))
         pass
 
     def save_csv(self, data, save_path: str):
