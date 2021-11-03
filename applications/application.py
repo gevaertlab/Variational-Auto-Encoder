@@ -310,35 +310,35 @@ class Application:
             kwarg = {}
 
         # train
-        vis_clustermap({'features': X['train'], 'nodule': Y['train']},
-                       xlabel='features', ylabel='nodule', task_name=self.task_name,
-                       save_path=osp.join(save_dir,
-                                          f"{self.version}_{self.task_name}_clustermap_train.jpeg"))
+        # vis_clustermap({'features': X['train'], 'nodule': Y['train']},
+        #                xlabel='features', ylabel='nodule', task_name=self.task_name,
+        #                save_path=osp.join(save_dir,
+        #                                   f"{self.version}_{self.task_name}_clustermap_train.jpeg"))
         # vis_heatmap(X['train'], save_path=os.path.join(
         #             save_dir, f"{self.version}_heatmap_train.jpeg"),
         #             xlabel='features', ylabel='nodule')
-        # vis_pca(data=X['train'], label=Y['train'],
-        #         save_path=os.path.join(
-        #             save_dir, f"{self.version}_{self.task_name}_pca_train.jpeg"),
-        #         label_name=self.task_name, **kwarg)
-        # vis_tsne(data=X['train'], label=Y['train'],
-        #          save_path=os.path.join(
-        #              save_dir, f"{self.version}_{self.task_name}_pca_train.jpeg"),
-        #          label_name=self.task_name, **kwarg)
+        vis_pca(data=X['train'], label=Y['train'],
+                save_path=os.path.join(
+                    save_dir, f"{self.version}_{self.task_name}_pca_train.jpeg"),
+                label_name=self.task_name, **kwarg)
+        vis_tsne(data=X['train'], label=Y['train'],
+                 save_path=os.path.join(
+                     save_dir, f"{self.version}_{self.task_name}_tsne_train.jpeg"),
+                 label_name=self.task_name, **kwarg)
 
         # val
-        vis_clustermap({'features': X['train'], 'nodule': Y['train']},
-                       xlabel='features', ylabel='nodule', task_name=self.task_name,
-                       save_path=osp.join(save_dir,
-                                          f"{self.version}_{self.task_name}_clustermap_test.jpeg"))
+        # vis_clustermap({'features': X['train'], 'nodule': Y['train']},
+        #                xlabel='features', ylabel='nodule', task_name=self.task_name,
+        #                save_path=osp.join(save_dir,
+        #                                   f"{self.version}_{self.task_name}_clustermap_test.jpeg"))
         # vis_heatmap(X['val'], save_path=os.path.join(
         #             save_dir, f"{self.version}_heatmap_val.jpeg"))
-        # vis_pca(data=X['val'], label=Y['val'],
-        #         save_path=os.path.join(
-        #             save_dir, f"{self.version}_{self.task_name}_pca_val.jpeg"),
-        #         label_name=self.task_name, **kwarg)
-        # vis_tsne(data=X['val'], label=Y['val'],
-        #          save_path=os.path.join(
-        #              save_dir, f"{self.version}_{self.task_name}_pca_val.jpeg"),
-        #          label_name=self.task_name, **kwarg)
+        vis_pca(data=X['val'], label=Y['val'],
+                save_path=os.path.join(
+                    save_dir, f"{self.version}_{self.task_name}_pca_val.jpeg"),
+                label_name=self.task_name, **kwarg)
+        vis_tsne(data=X['val'], label=Y['val'],
+                 save_path=os.path.join(
+                     save_dir, f"{self.version}_{self.task_name}_tsne_val.jpeg"),
+                 label_name=self.task_name, **kwarg)
         pass

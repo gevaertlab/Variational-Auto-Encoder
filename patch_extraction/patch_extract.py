@@ -11,7 +11,8 @@ import os.path as osp
 import random
 from multiprocessing import Pool, cpu_count
 from pathlib import Path
-from typing import Tuple
+from typing import Tuple, Union
+import numpy as np
 from torch.utils.data.dataloader import DataLoader
 from torch.utils.data.dataset import Dataset
 
@@ -45,9 +46,9 @@ class PatchExtract:
         pass
 
     def extract_img(self,
-                    img,
-                    center_point,
-                    save_path):
+                    img: np.ndarray,
+                    center_point: Union[list, Tuple],
+                    save_path: str):
         """extract patchES from a single image
         1. preprocess
         2. augment
@@ -60,7 +61,7 @@ class PatchExtract:
         """
         spacing, transpose_axis = self.dataset.get_info('spacing'), \
             self.dataset.get_info('transpose_axis')
-        # preprocesing
+        # preprocesing: np_image, new center point
         img, center_point = preprocess(img=img,
                                        center_point=center_point,
                                        spacing=spacing,
@@ -91,19 +92,38 @@ class PatchExtract:
         pass
 
     def load_extract(self,
-                     img_path,
-                     load_func,
-                     center_point,
-                     file_name,
-                     save_dir):
-        # calls load image and extract image
-        img = self.dataset[img_path]
-        # img = self.load_img(img_path=img_path,
-        #                     load_func=load_func)
-        self.extract_img(img,
-                         center_point,
-                         osp.join(save_dir, file_name))
+                     item,
+                     save_dir: str,
+                     overwrite=False,):
+        meta = self.dataset.get_info(item)[1]
+        img_path = meta['path']
+        centroid_dict = meta['centroid_dict']
+        for k, v in centroid_dict.items():
+            file_name = f"{meta['pid']}.{str(k)}.nrrd"
+            img = self.dataset.load_funcs['ct'](img_path)
+            save_path = osp.join(save_dir, file_name)
+            if not overwrite and os.path.exists(save_path):
+                self.logger.info("{save_path} already exists")
+                continue
+            self.extract_img(img=img,
+                             center_point=v,
+                             save_path=save_path)
         pass
+
+    # def load_extract(self,
+    #                  img_path,
+    #                  load_func,
+    #                  center_point,
+    #                  file_name,
+    #                  save_dir):
+    #     # calls load image and extract image
+    #     img = self.dataset[img_path]
+    #     # img = self.load_img(img_path=img_path,
+    #     #                     load_func=load_func)
+    #     self.extract_img(img,
+    #                      center_point,
+    #                      osp.join(save_dir, file_name))
+    #     pass
 
     # def load_img(self, img_path=None, load_func=None):
     #     if not load_func:
@@ -113,6 +133,7 @@ class PatchExtract:
 
     def load_extract_ds(self,
                         save_dir,
+                        overwrite=False,
                         multi=False):
         # if not multi: # extract one by one
         #     dataloader = DataLoader()
@@ -123,12 +144,16 @@ class PatchExtract:
         # called load_extract for the whole dataset
         load_func = self.dataset.load_funcs['ct']
         if not multi:
-            for file_name, (img_path, center_point) in tqdm(self.dataset.get_info('data_dict').items()):
-                self.load_extract(img_path=img_path,
-                                  load_func=load_func,
-                                  center_point=tuple(center_point),
-                                  file_name=file_name+'.nrrd',  # add ext
-                                  save_dir=save_dir)
+            
+            # for file_name, (img_path, center_point) in tqdm(self.dataset.get_info('data_dict').items()):
+            #     self.load_extract(img_path=img_path,
+            #                       load_func=load_func,
+            #                       center_point=tuple(center_point),
+            #                       file_name=file_name+'.nrrd',  # add ext
+            #                       save_dir=save_dir)
+            
+            for i in tqdm(range(len(self.dataset))):
+                self.load_extract(item=i, save_dir=save_dir, overwrite=overwrite)
         else:
             data_tuple = [
                 (img_path,
@@ -143,7 +168,6 @@ class PatchExtract:
                 p.starmap(self.load_extract,
                           tqdm(data_tuple,
                                total=len(data_tuple)))
-        # visualization
 
         pass
 

@@ -77,10 +77,10 @@ class VAEXperiment(pl.LightningModule):
         recons = self.model.generate(test_input)
 
         # visualization using our codes
-        vis3d_tensor(recons.data, save_dir=os.path.join(f"{self.logger.save_dir}{self.logger.name}/version_{self.logger.version}/media",
+        vis3d_tensor(recons.data, save_path=os.path.join(f"{self.logger.save_dir}{self.logger.name}/version_{self.logger.version}/media",
                                                         f"recons_{self.logger.name}_{self.current_epoch}.png"))
 
-        vis3d_tensor(test_input.data, save_dir=os.path.join(f"{self.logger.save_dir}{self.logger.name}/version_{self.logger.version}/media",
+        vis3d_tensor(test_input.data, save_path=os.path.join(f"{self.logger.save_dir}{self.logger.name}/version_{self.logger.version}/media",
                                                             f"real_img_{self.logger.name}_{self.current_epoch}.png"))
         del test_input, recons  # , samples
 
@@ -116,12 +116,11 @@ class VAEXperiment(pl.LightningModule):
             return optims
 
     def train_dataloader(self, shuffle=True, drop_last=True):  # -> DataLoader
-        # modified: using only LIDC dataset for simplicity
         train_ds = self.dataset(root_dir=None,
                                 transform=sitk2tensor,
                                 split='train')
         self.num_train_imgs = len(train_ds)
-        return DataLoader(train_ds,
+        return DataLoader(dataset=train_ds,
                           batch_size=self.params['batch_size'],
                           shuffle=shuffle,
                           drop_last=drop_last,

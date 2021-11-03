@@ -31,3 +31,9 @@ def PSNR(orig, recon):  # peak signal to noise ratio
     max_pixel = max(orig.max(), recon.max())
     psnr_value = 20 * math.log10(max_pixel / math.sqrt(mse))
     return psnr_value
+
+
+def PSNR_skimage(orig, recon):
+    orig = ensure_numpy(orig)
+    recon = ensure_numpy(recon)
+    return psnr(orig, recon, data_range=recon.max() - recon.min())

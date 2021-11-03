@@ -5,6 +5,8 @@ import os
 import os.path as osp
 
 import numpy as np
+from .python_logger import get_logger
+LOGGER = get_logger()
 
 
 def _load_img(img_path, type):
@@ -63,9 +65,9 @@ def _(img: sitk.Image, save_path: str, verbose=0):
         writer.SetFileName(save_path)
         writer.Execute(img)
         if verbose:
-            print('Save to ', save_path)
+            LOGGER.info(f'save to {save_path}')
     elif verbose:
-        print(f'file {save_path} already exists.')
+        LOGGER.info(f'file {save_path} already exists.')
     return
 
 
@@ -79,4 +81,5 @@ def _(img: np.ndarray, save_path: str, verbose=0):
 def mkdir_safe(dir):
     if not os.path.exists(dir):
         os.mkdir(dir)
+        LOGGER.info(f"made dir: {dir}")
     pass

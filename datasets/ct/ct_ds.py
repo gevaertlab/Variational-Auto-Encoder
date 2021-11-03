@@ -20,6 +20,8 @@ from torch.utils.data.dataset import Dataset
 from utils.funcs import print_dict
 import SimpleITK as sitk
 
+from utils.python_logger import get_logger
+
 
 class bidict(dict):
     """ 
@@ -97,6 +99,7 @@ class CTInfoDict:
             transpose_axis (list, optional): [description]. Defaults to [0, 1, 2].
             data_dict: (e.g. {<filename>:{'path':<path>, 'centroid':<centroid>}})
         """
+        self.logger = get_logger(self.__class__.__name__)
         self.basic_init(name=name,
                         root_dir=root_dir,
                         spacing=spacing,
@@ -123,7 +126,7 @@ class CTInfoDict:
         elif os.path.exists(self.save_path):
             self.load_cached()
         else:
-            print(f"No cached data loaded at: \'{self.save_path}\'")
+            self.logger.info(f"No cached data loaded at: \'{self.save_path}\'")
         pass
 
     def update_info(self,
@@ -226,6 +229,9 @@ class CTDataset(Dataset):
         #     self.register()
         self.load_funcs = {}
         pass
+
+    def _valid_split(self, split):
+        return split in self.SPLIT_SET
 
     def __len__(self):
         return len(self._ds_info.data_dict)

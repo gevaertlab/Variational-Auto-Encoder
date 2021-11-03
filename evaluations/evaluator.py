@@ -1,3 +1,4 @@
+import inspect
 import os
 import os.path as osp
 import re
@@ -9,6 +10,14 @@ from configs.config_vars import BASE_DIR
 from experiment import VAEXperiment
 from models import VAE_MODELS
 from tqdm import tqdm
+# from utils.custom_metrics import SSIM, MSE, PSNR
+from utils import custom_metrics
+from utils.io import mkdir_safe
+from utils.python_logger import get_logger
+from utils.visualization import vis3d_tensor
+
+METRICS_FUNCS = inspect.getmembers(custom_metrics, inspect.isfunction)
+METRICS_DICT = dict(METRICS_FUNCS)
 
 
 class BaseEvaluator:
@@ -30,6 +39,7 @@ class BaseEvaluator:
         self._config = self._load_config(self.load_dir)
         self.module = self._init_model(self.load_dir,
                                        self.base_model_name)
+        self.logger = get_logger(cls_name=self.__class__.__name__)
         pass
 
     def _load_config(self, load_dir):
@@ -81,18 +91,18 @@ class MetricEvaluator(BaseEvaluator):
 
     def __init__(self,
                  metrics: List,
-                 base_model_name: str,
                  log_name: str,
-                 version: int):
+                 version: int,
+                 base_model_name: str = 'VAE3D',):
         super().__init__(log_name=log_name,
                          version=version,
                          base_model_name=base_model_name)
 
         try:
-            self.metrics = {name: globals()[name] for name in metrics}
+            self.metrics = {name: METRICS_DICT[name] for name in metrics}
         except KeyError as e:
             print(
-                e, f"[MetricEvaluator] Failed to find metric name. metrics: {metrics}")
+                e, f"[MetricEvaluator] Failed to find metric name {metrics}. Available metrics: {METRICS_DICT.keys}")
         pass
 
     def calc_metrics(self,
@@ -116,3 +126,42 @@ class MetricEvaluator(BaseEvaluator):
 
     def __call__(self, *args: Any, **kwds: Any) -> Any:
         return self.calc_metrics(*args, **kwds)
+
+
+class ReconEvaluator(BaseEvaluator):
+    """ visualize reconstructed patches """
+
+    def __init__(self,
+                 vis_dir: str,
+                 log_name: str,
+                 version: int,
+                 base_model_name: str = 'VAE3D',):
+        super().__init__(log_name=log_name,
+                         version=version,
+                         base_model_name=base_model_name)
+        mkdir_safe(vis_dir)
+        self.vis_dir = vis_dir
+        pass
+
+    def visualize(self,
+                  dataloader='val_dataloader',
+                  dl_params={'shuffle': False, 'drop_last': False},
+                  num_batches=10):
+        dataloader = self._parse_dataloader(dataloader, dl_params=dl_params)
+        name_prefix = f"{self.log_name}.{self.version}."
+        for i, (batch, file_names) in enumerate(dataloader):
+            output = self.module.model.forward(batch)
+            # detach
+            batch, recon_batch = batch.detach(), output[0].detach()
+            vis3d_tensor(img_tensor=batch,
+                         save_path=osp.join(self.vis_dir,
+                                            f"{name_prefix}{str(i).zfill(2)}_image.jpeg"))
+            vis3d_tensor(img_tensor=recon_batch,
+                         save_path=osp.join(self.vis_dir,
+                                            f"{name_prefix}{str(i).zfill(2)}_recon.jpeg"))
+            if i >= num_batches:
+                return
+        pass
+
+    def __call__(self, *args: Any, **kwds: Any) -> Any:
+        return self.visualize(*args, **kwds)

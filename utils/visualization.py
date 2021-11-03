@@ -31,7 +31,7 @@ plt.style.use('ggplot')
 plt.ioff()  # Turn off interactive mode
 matplotlib.use('Agg')
 
-logger = get_logger()
+LOGGER = get_logger()
 
 
 def flatten_list(_2d_list):
@@ -88,8 +88,11 @@ def vis3d(img,
     pass
 
 
-def vis3d_tensor(img_tensor, axis=0, slice_num=None, save_dir='/home/yyhhli/code/image data/temp_img.png'):
-    ''' 
+def vis3d_tensor(img_tensor,
+                 axis=0,
+                 slice_num=None,
+                 save_path='/home/yyhhli/code/image data/temp_img.png'):
+    '''
     Visualize image tensor of a batch 
     @param: img_tensor: [B, C, L, W, H]
     @axis: select [L, W, H] to cut the slice, default to be 0 -- L
@@ -103,7 +106,10 @@ def vis3d_tensor(img_tensor, axis=0, slice_num=None, save_dir='/home/yyhhli/code
     indices[axis + 2] = slice_num
     img_tensor_slice = img_tensor[tuple(
         slice(indices[i]) if indices[i] is None else indices[i] for i in range(5))]
-    vutils.save_image(img_tensor_slice.data, save_dir, normalize=True, nrow=8)
+    vutils.save_image(img_tensor_slice.data, 
+                      save_path, 
+                      normalize=True, 
+                      nrow=8)
 
 
 def vis_sitk(img, axis=2, slice_num=None, vis_path='/home/yyhhli/code/image data/temp_img.png'):
@@ -231,7 +237,7 @@ def ytrue_ypred_scatter(pred_dict, save_dir='/home/yyhhli/temp.jpeg'):
     plt.legend()
     plt.tight_layout()
     plt.savefig(save_dir, dpi=300)
-    print(f"plotted at {save_dir}")
+    LOGGER.info(f"plotted at {save_dir}")
     plt.close()
 
 
@@ -251,7 +257,7 @@ def plot_cm(y_true,
     plt.grid(False)
     plt.savefig(save_dir, dpi=400)
     plt.close()
-    print(f"Visualized at {save_dir}")
+    LOGGER.info(f"visualized at {save_dir}")
     pass
 
 
@@ -298,7 +304,7 @@ def confusion_matrix_models(pred_dict, save_dir, classes=list(range(1, 6))):
                                      classes=classes)
         plt.savefig(save_dir, dpi=200)
         plt.close()
-        print(f"Visualized at {save_dir}")
+        LOGGER.info(f"visualized at {save_dir}")
         pass
 
 
@@ -312,7 +318,7 @@ def vis_pca(data: np.ndarray,
     """
     pca = PCA(n_components=3)
     pca_result = pca.fit_transform(data)
-    print(f"Explained variation per principal component: \
+    LOGGER.info(f"Explained variation per principal component: \
           {pca.explained_variance_ratio_}")
     plt.figure(figsize=(5, 5))
     # case 1, no label
@@ -349,7 +355,7 @@ def vis_pca(data: np.ndarray,
                 alpha=0.5)
     plt.savefig(save_path, dpi=200)
     plt.close()
-    print(f"Visualized at {save_path}")
+    LOGGER.info(f"Visualized at {save_path}")
     pass
 
 
@@ -398,7 +404,7 @@ def vis_tsne(data: np.ndarray,
                 alpha=0.5)
     plt.savefig(save_path, dpi=200)
     plt.close()
-    print(f"Visualized at {save_path}")
+    LOGGER.info(f"visualized at {save_path}")
     pass
 
 
@@ -415,7 +421,7 @@ def vis_heatmap(data: np.ndarray,
     plt.tight_layout()
     plt.savefig(save_path, dpi=200)
     plt.close()
-    logger.info(f"Visualized at {save_path}")
+    LOGGER.info(f"Visualized at {save_path}")
     pass
 
 
@@ -447,7 +453,7 @@ def vis_clustermap(data: Dict[str, np.ndarray],
     plt.tight_layout()
     plt.savefig(save_path, dpi=200)
     plt.close()
-    logger.info(f"Visualized at {save_path}")
+    LOGGER.info(f"Visualized at {save_path}")
     pass
 
 
@@ -455,7 +461,7 @@ def get_cmap(data: np.ndarray, cmap: str):
     if isinstance(data, list):
         udata = list(set(data))
     else:
-        logger.error(f"not implemented case: {type(data)}")
+        LOGGER.error(f"not implemented case: {type(data)}")
         raise NotImplementedError
     cmap = matplotlib.cm.get_cmap(cmap)
     step = 1 / len(udata)

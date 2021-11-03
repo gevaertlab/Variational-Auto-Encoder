@@ -1,9 +1,7 @@
 import os.path as osp
-import re
 
 from configs.config_vars import DS_ROOT_DIR
 from datasets.label.label_dict import LABEL_DICT
-from datasets.utils import train_val_test_split
 
 from .patch_ds import PatchDataset
 
@@ -20,25 +18,9 @@ class LIDCPatchDataset(PatchDataset):
         super(LIDCPatchDataset, self).__init__(*args, **kwargs)
         pass
 
-    @staticmethod
-    def _get_nodule_names(patch_name_list):
-        """
-        get nodule names from patch names with augmentations
-        """
-        result_list = [i.split('.') for i in patch_name_list]
-        result_list = ['.'.join([i[0], i[1]]) for i in result_list]
-        return list(set(result_list))
-
-    @staticmethod
-    def _get_patch_names(nodule_name_list, patch_name_list):
-        """
-        match patch names with nodule name list
-        """
-        result_list = []
-        for patch_name in patch_name_list:
-            if any([patch_name.startswith(nn) for nn in nodule_name_list]):
-                result_list.append(patch_name)
-        return result_list
+    def _get_patient_list(self, patch_name_list):
+        patient_names = list(set([n.split('.')[0] for n in patch_name_list]))
+        return patient_names
 
 
 class LIDCPatchAugDataset(LIDCPatchDataset):
@@ -49,24 +31,6 @@ class LIDCPatchAugDataset(LIDCPatchDataset):
                 DS_ROOT_DIR, 'TCIA_LIDC/LIDC-patch-32_aug/')
         super(LIDCPatchDataset, self).__init__(*args, **kwargs)
         pass
-
-    def _get_nodule_names(self, patch_name_list):
-        """
-        get nodule names from patch names with augmentations
-        """
-        result_list = [i.split('.') for i in patch_name_list]
-        result_list = ['.'.join([i[0], i[1]]) for i in result_list]
-        return list(set(result_list))
-
-    def _get_patch_names(self, nodule_name_list, patch_name_list):
-        """
-        match patch names with nodule name list
-        """
-        result_list = []
-        for patch_name in patch_name_list:
-            if any([patch_name.startswith(nn) for nn in nodule_name_list]):
-                result_list.append(patch_name)
-        return result_list
 
 
 class LIDCPatchLabelDataset(LIDCPatchDataset):
