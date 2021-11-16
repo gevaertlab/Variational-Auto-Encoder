@@ -165,3 +165,6 @@ class ReconEvaluator(BaseEvaluator):
 
     def __call__(self, *args: Any, **kwds: Any) -> Any:
         return self.visualize(*args, **kwds)
+
+
+# def TODO: decoding things

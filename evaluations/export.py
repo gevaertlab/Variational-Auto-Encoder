@@ -2,7 +2,7 @@
 
 import os
 import os.path as osp
-
+from typing import Dict
 import pandas as pd
 from applications import TASK_DICT
 from configs.config_vars import BASE_DIR
@@ -21,6 +21,7 @@ class Exporter(EmbeddingPredictor):  # inherited from BaseEvaluator
     def __init__(self,
                  log_name: str,
                  version: int,
+                 dataloader: Dict = {'train': 'train_dataloader', 'val': 'val_dataloader'},
                  task_names: str = list(TASK_DICT.keys()),
                  base_model_name: str = 'VAE3D'):
         super().__init__(log_name=log_name,
@@ -30,6 +31,7 @@ class Exporter(EmbeddingPredictor):  # inherited from BaseEvaluator
             name=(osp.basename(__file__), self.__class__.__name__))
         self.timer()
         self.task_names = task_names
+        self.dataloader = dataloader
         self.logger = get_logger(self.__class__.__name__)
         # get load and save dir
         self.load_dir = osp.join(self.LOG_DIR,
@@ -73,12 +75,12 @@ class Exporter(EmbeddingPredictor):  # inherited from BaseEvaluator
                                        base_model_name=self.base_model_name,)
 
         if not embeddings['train'].saved:
-            embeddings['train'] = predictor.predict_embedding(dataloader='train_dataloader',
+            embeddings['train'] = predictor.predict_embedding(dataloader=self.dataloader['train'],
                                                               split='train')
         else:
             _ = embeddings['train'].load()
         if not embeddings['val'].saved:
-            embeddings['val'] = predictor.predict_embedding(dataloader='val_dataloader',
+            embeddings['val'] = predictor.predict_embedding(dataloader=self.dataloader['val'],
                                                             split='val')
         else:
             _ = embeddings['val'].load()

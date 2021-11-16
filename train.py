@@ -64,7 +64,5 @@ def main(config_name=None):
 
 
 if __name__ == '__main__':
-
     main()
-    
     pass

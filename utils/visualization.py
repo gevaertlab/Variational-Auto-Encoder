@@ -106,10 +106,11 @@ def vis3d_tensor(img_tensor,
     indices[axis + 2] = slice_num
     img_tensor_slice = img_tensor[tuple(
         slice(indices[i]) if indices[i] is None else indices[i] for i in range(5))]
-    vutils.save_image(img_tensor_slice.data, 
-                      save_path, 
-                      normalize=True, 
-                      nrow=8)
+    vutils.save_image(img_tensor_slice.data,
+                      save_path,
+                      normalize=True,
+                      nrow=6)
+    pass
 
 
 def vis_sitk(img, axis=2, slice_num=None, vis_path='/home/yyhhli/code/image data/temp_img.png'):
