@@ -6,8 +6,10 @@ import numpy as np
 import SimpleITK as sitk
 from datasets.utils import train_val_test_split
 from datasets.ct import CTDataset
-from torch.utils.data import ConcatDataset, Dataset
+from torch.utils.data import Dataset
 from torchvision import transforms
+
+from utils.python_logger import get_logger
 
 
 class PatchDataset(Dataset):
@@ -33,6 +35,7 @@ class PatchDataset(Dataset):
             _get_nodule_names(patch_name_list) and _get_patch_names(nodule_name_list, patch_name_list)
         """
         super(PatchDataset, self).__init__()
+        self.logger = get_logger(cls_name=self.__class__.__name__)
         self.root_dir = root_dir
         self.transform = transform
         # set to be relative path to patches from self.root_dir
@@ -50,8 +53,8 @@ class PatchDataset(Dataset):
         """should be overwritten.
         split should be one of the elem in split_set.
         this function takes care of the images that the dataset can load.
-        - And takes care of potential data leakage
         - Takes care of potential preset train/val/test split.
+        - And takes care of potential data leakage
         - Should output stable result each time.
         - Initialize self.patches
         """
@@ -69,7 +72,8 @@ class PatchDataset(Dataset):
                                                    random_state=9001)
             patients = self._list_index(patient_list, idx[split])
             self.patches = self._get_patch_names(patients, patches_list)
-            # self.patches = self._list_index(patches_list, idx[split])
+            self.logger.info(
+                f"patient split: train:{len(idx['train'])}, val:{len(idx['val'])}, test:{len(idx['test'])}")
         self._split = split
         return split
 

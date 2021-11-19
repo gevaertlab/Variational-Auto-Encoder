@@ -1,12 +1,15 @@
 ''' some functions for augmentation purposes '''
-from typing import Dict, List, Tuple
-import SimpleITK as sitk
-import numpy as np
-import matplotlib.pyplot as plt
 import itertools
-from scipy import ndimage
-from .util import rotate_3d_coord, get_center_np
+import os
 import random
+from typing import Dict, List, Tuple
+
+import matplotlib.pyplot as plt
+import numpy as np
+import SimpleITK as sitk
+from scipy import ndimage
+
+from .util import get_center_np, rotate_3d_coord
 
 
 class Augmentation:
@@ -133,7 +136,8 @@ class Augmentation:
     def vis_patch_aug(self,
                       origin_img_n_center,
                       aug_img_n_center,
-                      time):
+                      time,
+                      vis_dir="/labs/gevaertlab/users/yyhhli/code/debug/",):
         [org_img, org_cp], [aug_img, aug_cp] = origin_img_n_center, aug_img_n_center
         fig, ax = plt.subplots(2, 1)
         ax[0].imshow(org_img)
@@ -142,12 +146,12 @@ class Augmentation:
         ax[1].imshow(aug_img)
         ax[1].plot(aug_cp)
         ax[1].annotate(aug_cp, "center_point")
-        plt.savefig(f'/labs/gevaertlab/users/yyhhli/code/debug/aug_{str(time)}',
+        plt.savefig(os.path.join(vis_dir, f'aug_{str(time)}'),
                     dpi=300)
         pass
 
 
-def calc_crop_size(patch_size: Tuple, aug_params: List)  :
+def calc_crop_size(patch_size: Tuple, aug_params: List):
     """
     calculate crop size before augmentation
     NOTE: this size calculation highly depends on the type and 

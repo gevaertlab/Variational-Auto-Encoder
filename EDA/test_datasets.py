@@ -89,5 +89,25 @@ def test_lidc_label():
     pass
 
 
+def test_lidc_split():
+    from datasets import PATCH_DATASETS
+    from datasets.utils import sitk2tensor
+    lidc_patch = PATCH_DATASETS["LIDCPatchDataset"](root_dir=None,
+                                                    transform=sitk2tensor,
+                                                    split='train')
+    data = lidc_patch[1]
+    print(data)
+    pass
+
+
+def test_lidc_split():
+    from datasets import PATCH_DATASETS
+    from datasets.utils import sitk2tensor
+    lndb_patch = PATCH_DATASETS["LNDbPatch32Dataset"](root_dir=None,
+                                                      transform=sitk2tensor,
+                                                      split='train')
+    len(lndb_patch)
+    pass
+
 if __name__ == '__main__':
-    test_lidc_label()
+    test_lidc_split()

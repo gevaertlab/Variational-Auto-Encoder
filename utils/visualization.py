@@ -91,6 +91,7 @@ def vis3d(img,
 def vis3d_tensor(img_tensor,
                  axis=0,
                  slice_num=None,
+                 nrow=6,
                  save_path='/home/yyhhli/code/image data/temp_img.png'):
     '''
     Visualize image tensor of a batch 
@@ -109,7 +110,7 @@ def vis3d_tensor(img_tensor,
     vutils.save_image(img_tensor_slice.data,
                       save_path,
                       normalize=True,
-                      nrow=6)
+                      nrow=nrow)
     pass
 
 

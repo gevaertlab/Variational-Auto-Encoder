@@ -1,17 +1,17 @@
 """ organize embedding dataset, predict, save, load embeddings from all kinds of model on all kinds of datasets """
 
-from torch.utils.data.dataloader import DataLoader
-import ujson as json  # switch to ujson
 import os
 import os.path as osp
 from typing import List, Union
-from tqdm import tqdm
+
 import numpy as np
+import ujson as json  # switch to ujson
 from configs.config_vars import BASE_DIR
 from evaluations.evaluator import BaseEvaluator
+from torch.utils.data.dataloader import DataLoader
+from tqdm import tqdm
 
 from utils.funcs import get_order, reorder
-
 from utils.python_logger import get_logger
 
 
