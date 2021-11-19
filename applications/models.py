@@ -1,29 +1,37 @@
 ''' This file contains sklearn models for downstream takss '''
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-import numpy as np
+
 # utils
 from functools import partial
+
 # models
-from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor, RandomForestClassifier
+from sklearn.ensemble import (GradientBoostingRegressor,
+                              RandomForestClassifier, RandomForestRegressor)
 from sklearn.linear_model import ElasticNet, LogisticRegression
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.svm import SVR, SVC
-from sklearn.neural_network import MLPRegressor, MLPClassifier
+# Metrics
+from sklearn.metrics import (accuracy_score, average_precision_score, f1_score,
+                             mean_absolute_error, r2_score,
+                             mean_absolute_percentage_error,
+                             mean_squared_error, precision_score, recall_score,
+                             roc_auc_score)
 # hyperparameter tunning
 from sklearn.model_selection import GridSearchCV
-# Metrics
-from sklearn.metrics import mean_absolute_error, mean_absolute_percentage_error, mean_squared_error
-from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, roc_auc_score, average_precision_score
-from typing import Dict
+from sklearn.feature_selection import SelectFdr, f_regression, SelectKBest
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.neural_network import MLPClassifier, MLPRegressor
+from sklearn.svm import SVC, SVR
+from utils.python_logger import get_logger
 
 from applications.tasks import TaskBase
+
+LOGGER = get_logger()
 
 
 REGRESSION_METRIC_DICT = {'MAE': mean_absolute_error,
                           'MAPE': mean_absolute_percentage_error,
-                          'RMSE': partial(mean_squared_error, squared=False)}
+                          'RMSE': partial(mean_squared_error, squared=False),
+                          'R2': r2_score}
 
 
 CLASSIFICATION_METRIC_DICT = {'Accuracy': accuracy_score,
@@ -42,9 +50,8 @@ NJOB_DICT = {'n_jobs': -1}  # using all the processers
 
 # model_dicts
 # REGRESSION
-li_reg = {'basemodel': partial(ElasticNet, **RANDOM_DICT),
-          'params': dict(alpha=[0.5, 1, 1.5],
-                         l1_ratio=np.arange(0.2, 1, step=0.2))}
+li_reg = {'basemodel': partial(ElasticNet, l1_ratio=1, normalize=True, **RANDOM_DICT),
+          'params': dict(alpha=[0.1, 0.5, 1])}
 
 rfr = {'basemodel': partial(RandomForestRegressor, **RANDOM_DICT, **NJOB_DICT),
        'params': dict(n_estimators=[10, 100, 200])}
@@ -69,8 +76,8 @@ REGRESSION_MODELS = {'linear_regression': li_reg,
                      }
 
 # CLASSIFICATION
-lr = {'basemodel': partial(LogisticRegression, penalty='elasticnet', solver='saga', **RANDOM_DICT, **NJOB_DICT),
-      'params': dict(C=[0.01, 0.1], l1_ratio=[0, 0.3, 0.5, 0.7, 1])}
+lr = {'basemodel': partial(LogisticRegression, penalty='l1', solver='saga', **RANDOM_DICT, **NJOB_DICT),
+      'params': dict(C=[0.01, 0.1])}
 
 knn = {'basemodel': partial(KNeighborsClassifier, **NJOB_DICT),
        'params': dict(n_neighbors=[3, 5, 7, 10], p=[1, 1, 5, 2])}
@@ -168,9 +175,17 @@ def predictWithModel(task: TaskBase,
                                   search=(not has_key) and tune_hparams)  # NOTE
     if not tune_hparams:  # HACK
         best_params = {}
+    # new step: feature selection
+    # TODO: implement this
+
+    model = Pipeline(
+        [('scaler', StandardScaler()),
+        #  ('selector', SelectFdr(score_func=f_regression, alpha=1e-2)),
+         #  ('selector', SelectKBest(score_func=f_regression, k=500)),
+         ('predictor', model_meta['basemodel'](**best_params)),
+         ], verbose=True)
     # 2. train model
-    model = model_meta['basemodel'](
-        **best_params).fit(x_trans['train'], y_trans['train'])
+    model = model.fit(x_trans['train'], y_trans['train'])
 
     # 3. evaluation
     if task.task_type == 'regression':
@@ -185,13 +200,14 @@ def predictWithModel(task: TaskBase,
         # print training results to see if the model can overfit
         y_train_true, y_train_pred = Y['train'], \
             task.inverse_transform(Y=model.predict(x_trans['train']))
-        train_metrics = modelEvaluation(y_true=Y['train'],
+        train_metrics = modelEvaluation(y_true=y_train_true,
                                         y_pred=y_train_pred,
                                         y_proba=None,
                                         y_decision=None,
                                         scoring_func_dict=REGRESSION_METRIC_DICT,
                                         task_type=task.task_type)
-        print("Result for training set:", train_metrics)
+        LOGGER.info(f"result for training set:{train_metrics}")
+        LOGGER.info(f"result for validation set:{metrics}")
         return metrics, y_pred, best_params
 
     elif task.task_type == 'classification':
@@ -215,7 +231,8 @@ def predictWithModel(task: TaskBase,
                                         y_decision=None,
                                         scoring_func_dict=CLASSIFICATION_METRIC_DICT,
                                         task_type=task.task_type)
-        print("Result for training set:", train_metrics)
+        LOGGER.info(f"result for training set:{train_metrics}")
+        LOGGER.info(f"result for validation set:{metrics}")
         return metrics, y_pred, {'y_proba': y_proba, 'y_decision': y_decision}, best_params
 
 

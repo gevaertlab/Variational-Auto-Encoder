@@ -4,7 +4,8 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-from ._type import List, Callable, Union, Any, TypeVar, Tuple, Tensor
+from ._type import TypeVar, Tensor
+from typing import List
 from .vae_base import VAEBackbone
 
 
@@ -131,7 +132,6 @@ class VAE3D(VAEBackbone):
         z = self.reparameterize(mu, log_var)
         return [self.decode(z), input, mu, log_var]
 
-
     def loss_function(self,
                       *args,
                       **kwargs):  # -> dict
@@ -152,8 +152,7 @@ class VAE3D(VAEBackbone):
 
         recons_loss = F.mse_loss(recons, input)
 
-        kld_loss = torch.mean(-0.5 * torch.sum(1 +
-                                               log_var - mu ** 2 - log_var.exp(), dim=1), dim=0)
+        kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim=1), dim=0)
 
         loss = recons_loss + kld_weight * kld_loss
         # kld_loss positive

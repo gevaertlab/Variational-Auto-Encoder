@@ -1,22 +1,17 @@
 """ organize embedding dataset, predict, save, load embeddings from all kinds of model on all kinds of datasets """
 
-import ujson as json  # switch to ujson
-import pandas as pd
-import yaml
 import os
-import re
 import os.path as osp
 from typing import List, Union
-from tqdm import tqdm
+
 import numpy as np
+import ujson as json  # switch to ujson
 from configs.config_vars import BASE_DIR
 from evaluations.evaluator import BaseEvaluator
-from experiment import VAEXperiment
-from models import VAE_MODELS
+from torch.utils.data.dataloader import DataLoader
+from tqdm import tqdm
 
 from utils.funcs import get_order, reorder
-import torch
-
 from utils.python_logger import get_logger
 
 
@@ -30,6 +25,7 @@ class Embedding:
     def __init__(self,
                  log_name: str,
                  version: int,
+                 tag: str = '',
                  split=None):
         self.log_name = log_name
         self.version = version
@@ -41,6 +37,9 @@ class Embedding:
             self.file_name = f'embedding_{self.split}.json'
         else:
             self.file_name = 'embedding.json'
+        self.tag = tag
+        if tag:
+            self.file_name = f"{tag}_" + self.file_name
         self.file_dir = osp.join(self.save_dir, self.file_name)
         self.saved = osp.exists(self.file_dir)  # HACK: could be empty
         self.logger = get_logger(self.__class__.__name__)
@@ -140,7 +139,11 @@ class EmbeddingPredictor(BaseEvaluator):
         predict embedding with specified dataloader (dl) name and params 
         dl_params: e.g. {'shuffle':False, 'drop_last':False}
         """
-        embedding = Embedding(self.log_name, self.version, split)
+        embedding = Embedding(log_name=self.log_name,
+                              version=self.version,
+                              tag="" if not isinstance(
+                                  dataloader, DataLoader) else dataloader.dataset.__class__.__name__,
+                              split=split)
         dataloader = self._parse_dataloader(dataloader, dl_params=dl_params)
         self.logger.info(f"Predicting embeddings for {len(dataloader)} images")
         for batch, file_names in tqdm(dataloader):

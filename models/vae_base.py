@@ -3,7 +3,8 @@ from abc import abstractmethod
 from torch import nn
 from torch.nn import functional as F
 
-from ._type import *
+from ._type import Tensor
+from typing import List, Any
 
 
 class VAEBackbone(nn.Module):

@@ -1,13 +1,14 @@
 """ CT Dataset for LIDC """
-import logging
+# import logging
 import os
 import os.path as osp
 import re
-from typing import Dict, Union
+# from typing import Dict, Union
 
-import numpy as np
+# import numpy as np
 import pandas as pd
-import SimpleITK as sitk
+# import SimpleITK as sitk
+from tqdm import tqdm
 from configs.config_vars import DS_ROOT_DIR
 from utils.io import load_mhd
 from utils.python_logger import get_logger
@@ -24,7 +25,8 @@ class LNDbDataset(CTDataset):
                  root_dir: str = None,
                  name: str = 'LDNb',
                  split='train',
-                 params={},
+                 params={
+                     "save_path": "/labs/gevaertlab/data/lung cancer/LNDb/lndb_info_dict.json"},
                  reset_info=False):
 
         if root_dir is None:
@@ -35,6 +37,7 @@ class LNDbDataset(CTDataset):
                          split=split,
                          name=name,
                          params=params)
+
         self.load_funcs['ct'] = load_mhd
         if not self._ds_info.data_dict or reset_info:
             self.register()  # saving this
@@ -55,37 +58,41 @@ class LNDbDataset(CTDataset):
         # path = path
         # centroid_dict {'index':index, 'centroid':[x, y, z], 'volume':[va, vb, ..], radid:RadID}
         # rather slow process but small dataset
-        for filepath in filelist:
+        for filepath in tqdm(filelist):
             pid = int(re.search('LNDb-(\d+).mhd',
                                 os.path.basename(filepath))[1])
-            centroid_dict = self._extract_centroid_from_pid_meta(pid, meta_csv)
-            # poseprocessing centroid coord
-            # NOTE: TransformIndexToPhysicalPoint
+            meta_dict = self._extract_meta(pid, meta_csv)
+            # HACK: poseprocessing centroid coord
+            # 1. transfer physical coord to image coord
+            # NOTE: TransformPhysicalPointToIndex
+            # 2. flip X, Y axis
             img = self.load_funcs['ct'](filepath)
-            for i in centroid_dict.keys():
-                centroid_dict[i]['centroid'] = img.TransformIndexToPhysicalPoint(
-                    centroid_dict[i]['centroid'])
-            self.update_info(pid, {'pid': pid,
+            centroid_dict = {}
+            for i in meta_dict.keys():
+                centroid_dict[i] = img.TransformPhysicalPointToIndex(
+                    meta_dict[i]['centroid'])
+                y, x, z = centroid_dict[i]
+                centroid_dict[i] = (x, y, z)
+            self.update_info(pid, {'pid': f"LNDb-{str(pid).zfill(4)}",
                                    'path': filepath,
-                                   'centroid_dict': centroid_dict})
+                                   'centroid_dict': centroid_dict,
+                                   'meta_dict': meta_dict})
         pass
 
-    def _extract_centroid_from_pid_meta(self, pid: int, meta_csv: pd.DataFrame):
+    def _extract_meta(self, pid: int, meta_csv: pd.DataFrame):
         idmeta = meta_csv[meta_csv['LNDbID'] == pid]
-        centroid_dict = {}
+        meta_dict = {}
         for i, row in idmeta.iterrows():
-            centroid_dict[i] = {}
+            meta_dict[i] = {}
             # index
-            centroid_dict[i]['index'] = i
+            meta_dict[i]['index'] = i
             # centroid
-            centroid_dict[i]['centroid'] = [row['x'], row['y'], row['z']]
-            # TODO: TransformIndexToPhysicalPoint
-            self.load_ct_np(idx=filepath)
+            meta_dict[i]['centroid'] = [row['x'], row['y'], row['z']]
             # volume
-            centroid_dict[i]['volume'] = row['Volume']
+            meta_dict[i]['volume'] = row['Volume']
             # texture
-            centroid_dict[i]['texture'] = row['Text']
-        return centroid_dict
+            meta_dict[i]['texture'] = row['Text']
+        return meta_dict
 
     def _valid_split(self, split: str):
         try:
@@ -95,6 +102,7 @@ class LNDbDataset(CTDataset):
         pass
 
     def _get_files(self):
+        self.logger.info("get files ...")
         if not self._split:
             self.logger.info("split not set, default to be \"all\".")
         self.set_split('all')

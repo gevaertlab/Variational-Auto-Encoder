@@ -1,18 +1,22 @@
 """ provide backbone for label dataset. We can match a single label/batch of labels, save, load prematch labels, rematch label """
 
 import functools
+
+from tqdm import tqdm
 from configs.config_vars import BASE_DIR
 from typing import Any, List
 import os
 import numpy as np
-import pylidc as dc
 from multiprocessing import Pool, cpu_count
 from utils.funcs import reorder, get_order, sort_dict
 from utils.timer import Timer
 
 
 class Label:
-    """ does not store labels ready for prediction, more like a label matching tool, please save label in dict of numpy arrays """
+    """ 
+    does not store labels ready for prediction, 
+    more like a label matching tool, please save label in dict of numpy arrays 
+    """
 
     def __init__(self,
                  name: str = 'volume',
@@ -46,8 +50,11 @@ class Label:
                      n_jobs=cpu_count()):  # pool map
         self.timer()
         print(f"start matching {len(data_names)} labels ...")
-        pool = Pool(processes=n_jobs)
-        result = pool.map(self.match_label, data_names)
+        try:
+            pool = Pool(processes=n_jobs)
+            result = pool.map(self.match_label, data_names)
+        except Exception as e:
+            result = [self.match_label(dn) for dn in tqdm(data_names)]
         self.timer("matching labels")
         return result
 

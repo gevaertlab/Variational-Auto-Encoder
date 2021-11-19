@@ -1,4 +1,6 @@
-from .label_lidc import (LabelMalignancy,
+from .label_lidc import (LabelLNDbTexture,
+                         LabelLNDbVolume,
+                         LabelMalignancy,
                          LabelSpiculation,
                          LabelSubtlety,
                          LabelTexture,
@@ -9,4 +11,6 @@ LABEL_DICT = {'volume': LabelVolume,
               'malignancy': LabelMalignancy,
               'texture': LabelTexture,
               'spiculation': LabelSpiculation,
-              'subtlety': LabelSubtlety}
+              'subtlety': LabelSubtlety,
+              'LNDbTaskVolume': LabelLNDbVolume,
+              'LNDbTaskTexture': LabelLNDbTexture}

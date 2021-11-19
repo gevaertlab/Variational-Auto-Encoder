@@ -28,17 +28,18 @@ class LIDCDataset(CTDataset):
     def __init__(self,
                  root_dir: str = None,
                  name='LIDC',
-                 params={},
+                 params={
+                     "save_path": "/labs/gevaertlab/data/lung cancer/TCIA_LIDC/lidc_info_dict.json"},
                  reset_info=False):
         if root_dir is None:
             root_dir = os.path.join(DS_ROOT_DIR, "TCIA_LIDC")
         super().__init__(root_dir=root_dir,
                          name=name,
                          params=params)
-        if not self._ds_info.data_dict or reset_info:
+        self._scans = pl.query(pl.Scan)
+        if (not self._ds_info.data_dict) or reset_info:
             self._set_ds_info()  # not saving this
         self.load_funcs['ct'] = load_dcm
-        self._scans = pl.query(pl.Scan)
         pass
 
     def _set_ds_info(self):
@@ -82,7 +83,7 @@ class LIDCDataset(CTDataset):
     def load_centroid(self, idx, query_type='index'):
         try:
             return self._ds_info.get_info(idx)['centroid']
-        except KeyError:
+        except IndexError or KeyError:
             scan = self._scans[idx]
             return self.get_centroid_dict(scan)
 

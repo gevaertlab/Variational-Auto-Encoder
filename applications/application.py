@@ -1,19 +1,24 @@
 ''' This file utilize the trained encoder to do downstream tasks '''
 
 
-from datasets.embedding import EmbeddingPredictor, Embedding
-from evaluations.export import Exporter
-from utils.python_logger import get_logger
-from utils.save_dict import NpyDict
-from utils.save_dict import JsonDict
-from configs.config_vars import BASE_DIR
-from .__init__ import TASK_DICT
-from datasets.label.label_dict import LABEL_DICT
 import os
 import os.path as osp
-from .models import predictTask
-from utils.visualization import vis_clustermap, vis_heatmap, ytrue_ypred_scatter, confusion_matrix_models, vis_pca, vis_tsne
+from typing import Dict
+
+import pandas as pd
+from configs.config_vars import BASE_DIR
+from evaluations.export import Exporter
+from utils.python_logger import get_logger
+from utils.save_dict import JsonDict, NpyDict
 from utils.timer import Timer
+from utils.visualization import (confusion_matrix_models, vis_clustermap,
+                                 vis_heatmap, vis_pca, vis_tsne,
+                                 ytrue_ypred_scatter)
+
+from applications.associations import get_stats_results
+
+from .__init__ import TASK_DICT
+from .models import predictTask
 
 
 class Application:
@@ -31,7 +36,10 @@ class Application:
                  log_name: str,
                  version: int,
                  task_name: str,
-                 base_model_name: str = 'VAE3D'):
+                 base_model_name: str = 'VAE3D',
+                 dataloader: Dict = {'train': 'train_dataloader',
+                                     'val': 'val_dataloader'}
+                 ):
         self.timer = Timer(
             name=(osp.basename(__file__), self.__class__.__name__))
         self.timer()
@@ -41,6 +49,7 @@ class Application:
         self.base_model_name = base_model_name
         self.log_name = log_name
         self.version = version
+        self.dataloader = dataloader
 
         # get load and save dir
         self.load_dir = os.path.join(self.LOG_DIR,
@@ -57,7 +66,8 @@ class Application:
         # calculations:
         self.exporter = Exporter(base_model_name=base_model_name,
                                  log_name=log_name,
-                                 version=version)
+                                 version=version,
+                                 dataloader=self.dataloader)
         self.embeddings, self.data_names = self.exporter.get_embeddings()
         self.labels = self.exporter.get_labels(
             task_name, data_names=self.data_names)
@@ -95,52 +105,6 @@ class Application:
                                                                'npy'])))
         pass
 
-    # def get_labels(self, label_name):
-    #     """
-    #     get labels assuming embedding is get,
-    #     return dict of labels not label instance
-    #     """
-    #     label_instance = LABEL_DICT[label_name]()
-    #     label = {}
-
-    #     # get labels
-    #     self.timer()
-    #     label['train'] = label_instance.get_labels(self.data_names['train'])
-    #     label['val'] = label_instance.get_labels(self.data_names['val'])
-    #     self.timer('match labels')
-    #     return label
-
-    # def get_embeddings(self, augment=False):
-    #     self.logger.info("initializing embeddings")
-    #     embeddings = {'train': Embedding(self.log_name,
-    #                                      self.version,
-    #                                      split='train'),
-    #                   'val': Embedding(self.log_name,
-    #                                    self.version,
-    #                                    split='val')}
-
-    #     predictor = EmbeddingPredictor(self.base_model_name,
-    #                                    self.log_name,
-    #                                    self.version)
-
-    #     if not embeddings['train'].saved:
-    #         embeddings['train'] = predictor.predict_embedding(dataloader='train_dataloader',
-    #                                                           split='train')
-    #     else:
-    #         _ = embeddings['train'].load()
-    #     if not embeddings['val'].saved:
-    #         embeddings['val'] = predictor.predict_embedding(dataloader='val_dataloader',
-    #                                                         split='val')
-    #     else:
-    #         _ = embeddings['val'].load()
-
-    #     self.embeddings['train'], self.data_names['train'] = \
-    #         embeddings['train'].get_embedding(augment=augment)
-    #     self.embeddings['val'], self.data_names['val'] = \
-    #         embeddings['val'].get_embedding(augment=augment)
-
-    #     return self.embeddings, self.data_names
-
     def preprocess_data(self):
         # format the X and Y so that they can be taken by sklearn models
         X, Y = self.task.transform(self.embeddings, self.labels)
@@ -156,7 +120,7 @@ class Application:
         """
         border = "-----"
         self.logger.info(
-            f"{border}Prediction for task {self.task_name}{border}")
+            f"{border}prediction for task {self.task_name}{border}")
 
         # TRAIN + PREDICT
         self.load_hparam_dict()
@@ -178,8 +142,28 @@ class Application:
         perform association analysis between embeddings and labels
         using non-auged images in training set
         """
-        # TODO: implement this
-        pass
+        from scipy.stats import spearmanr as asso_func
+        from statsmodels.stats.multitest import fdrcorrection as correction_func
+
+        border = "-----"
+        self.logger.info(
+            f"{border}association analysis for task {self.task_name}{border}")
+        self.logger.info(
+            f"using {asso_func.__name__} association and {correction_func.__name__} correction ...")
+        X, Y = self.preprocess_data()
+        self.logger.info(
+            f"data dimentionalities: X={X['train'].shape}, Y={Y['train'].shape}")
+        stats_df = get_stats_results(X['train'], Y['train'], asso_func)
+        # correction
+        fdr_df = pd.DataFrame(correction_func(
+            pvals=list(stats_df['pvalue']))).transpose()
+        fdr_df.columns = ['reject', 'adjusted_pvalue']
+        adj_stats_df = pd.concat([stats_df, fdr_df], axis=1)
+        sig_df = adj_stats_df[adj_stats_df['reject'] ==
+                              True][["correlation", "pvalue", "adjusted_pvalue"]]
+        self.logger.info(
+            f"for task {self.task_name}, found {len(sig_df)} significant features")
+        return sig_df
 
     def load_hparam_dict(self):
         """ load hparam dictionary which should be the same place as save"""
@@ -299,6 +283,47 @@ class Application:
             self.logger.info(f"Saved figure to {diagnosis_figure_file}")
         pass
 
+    def draw_best_figure(self, verbose=True):
+        assert self.pred_dict.keys(), "pred_dict not exists"
+        # based on the task type, draw different things
+        diagnosis_figure_file = os.path.join(
+            self.save_dir, '.'.join([self.task_name, 'best_figure.jpeg']))
+
+        if self.task.task_type == 'regression':
+            # get best model
+            result_dict = {k: self.result_dict[k]['R2']
+                           for k in self.result_dict.keys() if k != '__dict'}  # max R2 = best
+            best_model = max(result_dict, key=result_dict.get)
+            pred_dict = {k: v for (k, v) in self.pred_dict.items() if k in {
+                best_model, "true"}}
+            # draw scatter
+            try:
+                ytrue_ypred_scatter(pred_dict, os.path.join(
+                    self.APP_DIR, diagnosis_figure_file))
+            except Exception as e:
+                self.logger.info(e)
+                return
+        elif self.task.task_type == 'classification':
+            # get best model
+            result_dict = {k: self.result_dict[k]['AUROC']
+                           for k in self.result_dict.keys()}
+            # max AUROC = best
+            best_model = max(result_dict, key=result_dict.get)
+            pred_dict = {k: v for (k, v) in self.pred_dict.items() if k in {
+                best_model, "true"}}
+
+            try:
+                confusion_matrix_models(self.pred_dict,
+                                        os.path.join(self.APP_DIR,
+                                                     diagnosis_figure_file),
+                                        classes=list(range(1, 6)))
+            except Exception as e:
+                self.logger.info(e)
+                return
+        if verbose:
+            self.logger.info(f"Saved figure to {diagnosis_figure_file}")
+        pass
+
     def visualize(self):
         """ visualizing with PCA and t-SNE and heatmap for embeddings with label """
         X, Y = self.preprocess_data()
@@ -310,35 +335,35 @@ class Application:
             kwarg = {}
 
         # train
-        vis_clustermap({'features': X['train'], 'nodule': Y['train']},
-                       xlabel='features', ylabel='nodule', task_name=self.task_name,
-                       save_path=osp.join(save_dir,
-                                          f"{self.version}_{self.task_name}_clustermap_train.jpeg"))
+        # vis_clustermap({'features': X['train'], 'nodule': Y['train']},
+        #                xlabel='features', ylabel='nodule', task_name=self.task_name,
+        #                save_path=osp.join(save_dir,
+        #                                   f"{self.version}_{self.task_name}_clustermap_train.jpeg"))
         # vis_heatmap(X['train'], save_path=os.path.join(
         #             save_dir, f"{self.version}_heatmap_train.jpeg"),
         #             xlabel='features', ylabel='nodule')
-        # vis_pca(data=X['train'], label=Y['train'],
-        #         save_path=os.path.join(
-        #             save_dir, f"{self.version}_{self.task_name}_pca_train.jpeg"),
-        #         label_name=self.task_name, **kwarg)
-        # vis_tsne(data=X['train'], label=Y['train'],
-        #          save_path=os.path.join(
-        #              save_dir, f"{self.version}_{self.task_name}_pca_train.jpeg"),
-        #          label_name=self.task_name, **kwarg)
+        vis_pca(data=X['train'], label=Y['train'],
+                save_path=os.path.join(
+                    save_dir, f"{self.version}_{self.task_name}_pca_train.jpeg"),
+                label_name=self.task_name, **kwarg)
+        vis_tsne(data=X['train'], label=Y['train'],
+                 save_path=os.path.join(
+                     save_dir, f"{self.version}_{self.task_name}_tsne_train.jpeg"),
+                 label_name=self.task_name, **kwarg)
 
         # val
-        vis_clustermap({'features': X['train'], 'nodule': Y['train']},
-                       xlabel='features', ylabel='nodule', task_name=self.task_name,
-                       save_path=osp.join(save_dir,
-                                          f"{self.version}_{self.task_name}_clustermap_test.jpeg"))
+        # vis_clustermap({'features': X['train'], 'nodule': Y['train']},
+        #                xlabel='features', ylabel='nodule', task_name=self.task_name,
+        #                save_path=osp.join(save_dir,
+        #                                   f"{self.version}_{self.task_name}_clustermap_test.jpeg"))
         # vis_heatmap(X['val'], save_path=os.path.join(
         #             save_dir, f"{self.version}_heatmap_val.jpeg"))
-        # vis_pca(data=X['val'], label=Y['val'],
-        #         save_path=os.path.join(
-        #             save_dir, f"{self.version}_{self.task_name}_pca_val.jpeg"),
-        #         label_name=self.task_name, **kwarg)
-        # vis_tsne(data=X['val'], label=Y['val'],
-        #          save_path=os.path.join(
-        #              save_dir, f"{self.version}_{self.task_name}_pca_val.jpeg"),
-        #          label_name=self.task_name, **kwarg)
+        vis_pca(data=X['val'], label=Y['val'],
+                save_path=os.path.join(
+                    save_dir, f"{self.version}_{self.task_name}_pca_val.jpeg"),
+                label_name=self.task_name, **kwarg)
+        vis_tsne(data=X['val'], label=Y['val'],
+                 save_path=os.path.join(
+                     save_dir, f"{self.version}_{self.task_name}_tsne_val.jpeg"),
+                 label_name=self.task_name, **kwarg)
         pass

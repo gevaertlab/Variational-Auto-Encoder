@@ -5,6 +5,10 @@ import logging
 
 def get_logger(cls_name=None, create_file=False):
     logger = logging.getLogger(cls_name)
+    
+    if logger.handlers:
+        logger.handlers = []
+        
     logger.setLevel(level=logging.INFO)
 
     if cls_name:
@@ -27,4 +31,5 @@ def get_logger(cls_name=None, create_file=False):
     stream_handler.setFormatter(formatter)
 
     logger.addHandler(stream_handler)
+    logger.propagate = False  # won't hit parent logger
     return logger

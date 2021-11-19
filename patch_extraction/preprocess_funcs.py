@@ -83,10 +83,10 @@ def convert_spacing(img,
 
     # calculate center_point if there is input
     if not center_point is None:
-        if isinstance(center_point, tuple):
+        if isinstance(center_point[0], (float, int)):
             new_center_point = _convert_point(center_point,
                                               orig_spacing, new_spacing)
-        elif isinstance(center_point, list):
+        elif isinstance(center_point[0], (list, Tuple)):
             new_center_point = [_convert_point(
                 c, orig_spacing, new_spacing) for c in center_point]
         return new_img, new_center_point
@@ -122,6 +122,7 @@ def preprocess(img,
     new_center_point = tuple(new_center_point)  # NOTE: convert to tuple
     uniformly_spaced_scaled_img = winsorize_scale(
         uniformly_spaced_img)
-    npimg = sitk.GetArrayFromImage(uniformly_spaced_scaled_img)
+    npimg = sitk.GetArrayFromImage(uniformly_spaced_scaled_img) # (z, x, y)
+    npimg = transpose(npimg, (1, 2, 0)) # (x, y, z)
     npimg = transpose(npimg, transpose_axis)
     return npimg, new_center_point

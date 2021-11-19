@@ -1,7 +1,10 @@
+import inspect
+from logging import Logger
 import os
 import os.path as osp
 import re
-from typing import Any, List
+from typing import Any, List, Union
+from numpy.lib.arraysetops import isin
 
 import torch
 import yaml
@@ -9,6 +12,14 @@ from configs.config_vars import BASE_DIR
 from experiment import VAEXperiment
 from models import VAE_MODELS
 from tqdm import tqdm
+# from utils.custom_metrics import SSIM, MSE, PSNR
+from utils import custom_metrics
+from utils.io import mkdir_safe
+from utils.python_logger import get_logger
+from utils.visualization import vis3d_tensor
+
+METRICS_FUNCS = inspect.getmembers(custom_metrics, inspect.isfunction)
+METRICS_DICT = dict(METRICS_FUNCS)
 
 
 class BaseEvaluator:
@@ -30,6 +41,7 @@ class BaseEvaluator:
         self._config = self._load_config(self.load_dir)
         self.module = self._init_model(self.load_dir,
                                        self.base_model_name)
+        self.logger = get_logger(cls_name=self.__class__.__name__)
         pass
 
     def _load_config(self, load_dir):
@@ -81,18 +93,18 @@ class MetricEvaluator(BaseEvaluator):
 
     def __init__(self,
                  metrics: List,
-                 base_model_name: str,
                  log_name: str,
-                 version: int):
+                 version: int,
+                 base_model_name: str = 'VAE3D',):
         super().__init__(log_name=log_name,
                          version=version,
                          base_model_name=base_model_name)
 
         try:
-            self.metrics = {name: globals()[name] for name in metrics}
+            self.metrics = {name: METRICS_DICT[name] for name in metrics}
         except KeyError as e:
             print(
-                e, f"[MetricEvaluator] Failed to find metric name. metrics: {metrics}")
+                e, f"[MetricEvaluator] Failed to find metric name {metrics}. Available metrics: {METRICS_DICT.keys}")
         pass
 
     def calc_metrics(self,
@@ -116,3 +128,222 @@ class MetricEvaluator(BaseEvaluator):
 
     def __call__(self, *args: Any, **kwds: Any) -> Any:
         return self.calc_metrics(*args, **kwds)
+
+
+class ReconEvaluator(BaseEvaluator):
+    """ visualize reconstructed patches """
+
+    def __init__(self,
+                 vis_dir: str,
+                 log_name: str,
+                 version: int,
+                 base_model_name: str = 'VAE3D',):
+        super().__init__(log_name=log_name,
+                         version=version,
+                         base_model_name=base_model_name)
+        mkdir_safe(vis_dir)
+        self.name_prefix = f"{self.log_name}.{self.version}."
+        self.vis_dir = vis_dir
+        pass
+
+    def visualize(self,
+                  dataloader='val_dataloader',
+                  dl_params={'shuffle': False, 'drop_last': False},
+                  num_batches=10):
+        dataloader = self._parse_dataloader(dataloader, dl_params=dl_params)
+        for i, (batch, file_names) in enumerate(dataloader):
+            output = self.module.model.forward(batch)
+            # detach
+            batch, recon_batch = batch.detach(), output[0].detach()
+            vis3d_tensor(img_tensor=batch,
+                         save_path=osp.join(self.vis_dir,
+                                            f"{self.name_prefix}{str(i).zfill(2)}_image.jpeg"))
+            vis3d_tensor(img_tensor=recon_batch,
+                         save_path=osp.join(self.vis_dir,
+                                            f"{self.name_prefix}{str(i).zfill(2)}_recon.jpeg"))
+            if i >= num_batches:
+                return
+        pass
+
+    def __call__(self, *args: Any, **kwds: Any) -> Any:
+        return self.visualize(*args, **kwds)
+
+
+class SynthesisGaussian(ReconEvaluator):
+    """ synthesize nodule patches with random gaussian values """
+
+    def __init__(self,
+                 vis_dir: str,
+                 log_name: str,
+                 version: int,
+                 base_model_name: str = 'VAE3D',):
+        super().__init__(vis_dir=vis_dir,
+                         log_name=log_name,
+                         version=version,
+                         base_model_name=base_model_name)
+        self.modes = {'random_gaussian': self.random_gaussian}
+        pass
+
+    def generate(self, latent_vector: torch.Tensor):
+        """ use decoder to generate 3D images """
+        synth_imgs = self.module.model.decode(latent_vector)
+        return synth_imgs
+
+    def random_gaussian(self, batch_num, seed=None):
+        """ generate a batch of random gaussian vectors as latent vectors """
+        batch_size = self.module.params['batch_size']
+        latent_dim = self.module.model.latent_dim
+        # NOTE: 0 and 1 are chosen according to kl loss
+        z = torch.normal(mean=0, std=1, size=(batch_size, latent_dim))
+        return z
+
+    def synthesize(self, mode='random_gaussian', kwargs={}):
+        func = self.modes[mode]
+        z = func(**kwargs)
+        synth_imgs = self.generate(z)
+        return synth_imgs
+
+    def synth_and_vis(self, mode='random_gaussian', kwargs={}, num_batches=1):
+        for i in range(num_batches):
+            synth_imgs = self.synthesize(mode=mode, kwargs=kwargs, batch_num=i)
+            path = osp.join(
+                self.vis_dir, f"{self.name_prefix}synth_batch_{mode}_{i}.jpeg")
+            vis3d_tensor(synth_imgs, save_path=path)
+        pass
+
+    def __call__(self, *args: Any, **kwds: Any) -> Any:
+        self.synth_and_vis(*args, **kwds)
+        pass
+
+
+class SynthsisReParam(ReconEvaluator):
+
+    def __init__(self,
+                 vis_dir: str,
+                 log_name: str,
+                 version: int,
+                 base_model_name: str = 'VAE3D'):
+        super().__init__(vis_dir=vis_dir,
+                         log_name=log_name,
+                         version=version,
+                         base_model_name=base_model_name)
+        pass
+
+    def repeat_reparam(self, mu, logvar, num_reparam=5):
+        latent_list = []
+        for j in range(num_reparam):
+            z = self.module.model.reparameterize(mu, logvar)
+            latent_list.append(z)
+        latent = torch.stack(latent_list, axis=1).detach()
+        latent = latent.view((latent.shape[0] * latent.shape[1],
+                              latent.shape[2]))
+        return latent
+
+    def generate(self, latent_vector: torch.Tensor):
+        """ use decoder to generate 3D images """
+        synth_imgs = self.module.model.decode(latent_vector)
+        return synth_imgs
+
+    def reparametrize(self,
+                      num_batches=1,
+                      dataloader='val_dataloader',
+                      dl_params={'shuffle': False, 'drop_last': False},
+                      num_reparametrization=5):
+        """ more re-parametrization of a single nodule """
+        dataloader = self._parse_dataloader(dataloader, dl_params=dl_params)
+        for i, (batch, file_names) in enumerate(dataloader):
+            mu, log_var = self.module.model.encode(batch)
+            self.logger.info(
+                f"average std = {torch.exp(0.5 * log_var).mean().detach().numpy()}")
+            # re-parametrize
+            latent_vector = self.repeat_reparam(mu=mu, logvar=log_var)
+            # synthesize
+            img_batch = self.generate(latent_vector=latent_vector)
+            # detach
+            vis3d_tensor(img_tensor=img_batch,
+                         nrow=num_reparametrization,
+                         save_path=osp.join(self.vis_dir,
+                                            f"{self.name_prefix}reparam_{str(i).zfill(2)}.jpeg"))
+            if i >= num_batches:
+                return
+        pass
+
+    def __call__(self, *args: Any, **kwds: Any) -> Any:
+        self.reparametrize(*args, **kwds)
+        pass
+
+
+class SynthesisRange(ReconEvaluator):
+
+    def __init__(self,
+                 vis_dir: str,
+                 log_name: str,
+                 version: int,
+                 base_model_name: str = 'VAE3D'):
+        super().__init__(vis_dir,
+                         log_name,
+                         version,
+                         base_model_name=base_model_name)
+        pass
+
+    def reparametrize(self,
+                      num_batches=1,
+                      dataloader='val_dataloader',
+                      dl_params={'shuffle': False, 'drop_last': False},
+                      num_points=10,
+                      feature_idx: Union[int, list] = 0):
+        """ more re-parametrization of a single nodule """
+        dataloader = self._parse_dataloader(dataloader, dl_params=dl_params)
+        for i, (batch, file_names) in enumerate(dataloader):
+            mu, log_var = self.module.model.encode(batch)
+            self.logger.info(
+                f"average std = {torch.exp(0.5 * log_var).mean().detach().numpy()}")
+            # re-parametrize
+            latent_vector = self.feature_range(mu=mu,
+                                               logvar=log_var,
+                                               idx=feature_idx,
+                                               num_points=num_points)
+            # synthesize
+            img_batch = self.generate(latent_vector=latent_vector)
+            # detach
+            if isinstance(feature_idx, int):
+                filename = f"{self.name_prefix}range_feature{feature_idx}_{str(i).zfill(2)}.jpeg"
+            else:
+                filename = f"{self.name_prefix}range_num={len(feature_idx)}_{str(i).zfill(2)}.jpeg"
+            vis3d_tensor(img_tensor=img_batch,
+                         nrow=num_points,
+                         save_path=osp.join(self.vis_dir,
+                                            filename))
+            if i == num_batches - 1:
+                return
+        pass
+
+    def feature_range(self,
+                      mu: torch.Tensor,
+                      logvar: torch.Tensor,
+                      idx: Union[int, list],
+                      num_points: int = 10,
+                      ):
+        # get latent variable
+        # latent = self.module.model.reparameterize(mu, logvar)
+        latent = mu
+        # std matrix
+        std = torch.exp(0.5 * logvar[:, idx])
+        std_linspace = torch.linspace(start=-5, end=5, steps=num_points)
+        # std_matrix = torch.outer(std, std_linspace)
+        std_matrix = (std.unsqueeze(2).repeat(1, 1, num_points)
+                      * std_linspace).permute(0, 2, 1)
+
+        # add std
+        latent = latent.unsqueeze(1).repeat(1, num_points, 1)
+        latent[:, :, idx] = latent[:, :, idx] + std_matrix
+        return latent
+
+    def generate(self, latent_vector: torch.Tensor):
+        """ use decoder to generate 3D images """
+        synth_imgs = self.module.model.decode(latent_vector)
+        return synth_imgs
+
+    def __call__(self, *args: Any, **kwds: Any) -> Any:
+        self.reparametrize(*args, **kwds)
+        pass
