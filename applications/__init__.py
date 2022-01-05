@@ -1,4 +1,6 @@
-from .tasks import LNDbTaskTexture, LNDbTaskVolume, TaskVolume, TaskMalignancy, TaskTexture, TaskSpiculation, TaskSubtlety
+from .tasks.lidc_tasks import TaskVolume, TaskMalignancy, TaskTexture, TaskSpiculation, TaskSubtlety
+from .tasks.lndb_tasks import LNDbTaskTexture, LNDbTaskVolume
+from .tasks.stanfordradiogenomics_tasks import StfRG
 
 TASK_DICT = {'volume': TaskVolume,
              'malignancy': TaskMalignancy,
@@ -6,4 +8,5 @@ TASK_DICT = {'volume': TaskVolume,
              'spiculation': TaskSpiculation,
              'subtlety': TaskSubtlety,
              "LNDbTaskVolume": LNDbTaskVolume,
-             "LNDbTaskTexture": LNDbTaskTexture}
+             "LNDbTaskTexture": LNDbTaskTexture,
+             "StfRG": StfRG}

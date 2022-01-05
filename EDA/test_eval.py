@@ -273,5 +273,105 @@ def test_value_range_v2():
     pass
 
 
+def test_recon_images_for_stf_dataset():
+    from datasets import PATCH_DATASETS
+    import os.path as osp
+    from datasets.utils import sitk2tensor
+    from evaluations.evaluator import ReconEvaluator
+    import numpy as np
+    from evaluations.evaluator import MetricEvaluator
+    stanford_radiogenomics = PATCH_DATASETS["StanfordRadiogenomicsPatchDataset"](root_dir=None,
+                                                                                 transform=sitk2tensor,
+                                                                                 split='val')
+    print("length of stanford_radiogenomics dataset",
+          len(stanford_radiogenomics))
+    lndb_dl = DataLoader(dataset=stanford_radiogenomics,
+                         batch_size=36,
+                         shuffle=False,
+                         drop_last=False,
+                         num_workers=4,
+                         pin_memory=True)
+    re = ReconEvaluator(vis_dir=osp.join(os.getcwd(), "evaluations/results/"),
+                        log_name='VAE3D32AUG',
+                        version=18)
+    re(dataloader=lndb_dl)
+    me = MetricEvaluator(metrics=["SSIM", "MSE", "PSNR"],
+                         log_name='VAE3D32AUG',
+                         version=18)
+    metrics_dict = me.calc_metrics(dataloader=lndb_dl)
+    for k, v in metrics_dict.items():
+        print(f"{k}: mean value = {np.mean(v)}")
+    pass
+
+
+def test_stanford_radiogenomics_tasks():
+    from datasets import PATCH_DATASETS
+    from datasets.utils import sitk2tensor
+    from applications.application import Application
+
+    stfrg_train_patch = PATCH_DATASETS["StanfordRadiogenomicsPatchDataset"](root_dir=None,
+                                                                            transform=sitk2tensor,
+                                                                            split='train')
+    stfrg_train_patch_dataloader = DataLoader(dataset=stfrg_train_patch,
+                                              batch_size=1,
+                                              shuffle=False,
+                                              drop_last=False,
+                                              num_workers=4,
+                                              pin_memory=True)
+    stfrg_test_patch = PATCH_DATASETS["StanfordRadiogenomicsPatchDataset"](root_dir=None,
+                                                                           transform=sitk2tensor,
+                                                                           split='test')
+    stfrg_test_patch_dataloader = DataLoader(dataset=stfrg_test_patch,
+                                             batch_size=1,
+                                             shuffle=False,
+                                             drop_last=False,
+                                             num_workers=4,
+                                             pin_memory=True)
+
+    app = Application(log_name='VAE3D32AUG',
+                      version=18,
+                      task_name='StfRG',
+                      task_kwds={'name': 'EGFR mutation status',
+                                 "task_type": "classification"},
+                      base_model_name='VAE3D',
+                      dataloaders={'train': stfrg_train_patch_dataloader,
+                                   'val': stfrg_test_patch_dataloader})
+
+    result_dict, pred_dict, pred_stats, hparam_dict = app.task_prediction(
+        tune_hparams=True, models='all')
+
+    return result_dict, pred_dict, pred_stats, hparam_dict
+
+
+def test_value_range_v3():
+    from applications.application import Application
+    result_dict = {}
+    # task_names = ['volume', 'malignancy', 'texture', 'spiculation', 'subtlety']
+    task_names = ['volume']
+    for task_name in task_names:
+        app = Application(log_name='VAE3D32AUG',
+                          version=18,
+                          task_name=task_name)
+        sig_df = app.association_analysis()
+        result_dict[task_name] = sig_df
+
+    # correlation filter
+    pos_index = (result_dict['volume']
+                 [result_dict['volume']['correlation'] > 0]).index
+    neg_index = (result_dict['volume']
+                 [result_dict['volume']['correlation'] < 0]).index
+    # only getting means
+    pos_index = [i for i in list(pos_index) if i < 2048]
+    neg_index = [i for i in list(neg_index) if i < 2048]
+    print(len(pos_index), len(neg_index))
+
+    from evaluations.evaluator import SynthesisRange
+    synth_range = SynthesisRange(log_name='VAE3D32AUG',
+                                 version=18,
+                                 vis_dir=osp.join(os.getcwd(), "evaluations/results/"))
+    synth_range(feature_idx=pos_index+[-i for i in neg_index])
+    pass
+
+
 if __name__ == "__main__":
-    test_value_range_v2()
+    test_stanford_radiogenomics_tasks()

@@ -51,7 +51,7 @@ class LNDbDataset(CTDataset):
         """
         if not self._split:
             self.logger.info("split not set, default to be \"all\".")
-        self.set_split('all')
+            self.set_split('all')
         filelist = self._get_files()
         meta_csv = self._get_meta_csv()
         # pid = LNDbID

@@ -20,7 +20,8 @@ class Label:
 
     def __init__(self,
                  name: str = 'volume',
-                 log_dir=os.path.join(BASE_DIR, 'applications/logs/')):
+                 log_dir=os.path.join(BASE_DIR, 'applications/logs/'),
+                 **kwds):
         self.name = name
         self.log_dir = log_dir
         self.save_path = self._get_save_path()
@@ -47,13 +48,17 @@ class Label:
 
     def match_labels(self,
                      data_names: list,
+                     multiprocess=False,
                      n_jobs=cpu_count()):  # pool map
         self.timer()
         print(f"start matching {len(data_names)} labels ...")
-        try:
-            pool = Pool(processes=n_jobs)
-            result = pool.map(self.match_label, data_names)
-        except Exception as e:
+        if multiprocess:
+            try:
+                pool = Pool(processes=n_jobs)
+                result = pool.map(self.match_label, data_names)
+            except Exception as e:
+                result = [self.match_label(dn) for dn in tqdm(data_names)]
+        else:
             result = [self.match_label(dn) for dn in tqdm(data_names)]
         self.timer("matching labels")
         return result

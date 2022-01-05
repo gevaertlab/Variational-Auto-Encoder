@@ -1,18 +1,11 @@
 """ CT Dataset for LIDC, largely replaced by pylidc module """
 
-from typing import Union
-import numpy as np
+
 from tqdm import tqdm
 from .ct_ds import CTCachedDataset, CTDataset
 import os
 import os.path as osp
-import re
-from time import time
-import xml.etree.ElementTree as ET
 
-import SimpleITK as sitk
-import pandas as pd
-import pydicom
 import pylidc as pl
 from configs.config_vars import DS_ROOT_DIR
 from utils.io import load_dcm

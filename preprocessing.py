@@ -15,7 +15,7 @@ def param_parser():
     parser.add_argument('--dataset',  '-r',
                         dest="dataset",
                         help='name of the dataset, defined in CT_DATASETS',
-                        default='LNDbDataset')
+                        default='StanfordRadiogenomicsDataset')
     parser.add_argument('--aug_param',  '-a',
                         dest="aug_param",
                         help='augmentation parameters (filename) for '
@@ -24,11 +24,11 @@ def param_parser():
     parser.add_argument('--save_dir',  '-S',
                         dest="save_dir",
                         help="save directory of converted patches",
-                        default='LNDb/LNDb-patch-32')  # NOTE: debug
+                        default='StanfordRadiogenomics/patch-32')  # NOTE: debug
     parser.add_argument('--vis_dir',  '-V',
                         dest="vis_dir",
                         help="visualization directory of converted patches",
-                        default='LNDb/LNDb-patch-visualization-32')  # NOTE: debug
+                        default='StanfordRadiogenomics/patch-visualization-32')  # NOTE: debug
     parser.add_argument('--size',  '-s',
                         dest="size",
                         help="size of the patches",
@@ -46,6 +46,10 @@ def param_parser():
                         dest="save_dir",
                         help="save directory of converted patches",
                         default='/labs/gevaertlab/users/yyhhli/code/debug')  # NOTE: actualdirectory
+    parser.add_argument('--overwrite',
+                        dest="overwrite",
+                        help="whether to overwrite previously processed set",
+                        action='store_true',)
     args = parser.parse_args()
     args.size = tuple([int(args.size)] * 3)
     if not args.save_dir.startswith('/'):
@@ -67,7 +71,8 @@ if __name__ == "__main__":
                                  augmentation_params=aug_param,
                                  debug=args.debug)
     patch_extract.load_extract_ds(save_dir=args.save_dir,
-                                  multi=args.multi)
+                                  multi=args.multi,
+                                  overwrite=args.overwrite)
     # visualization
     if args.debug:
         patch_extract.vis_ds(dataset_dir=args.save_dir,

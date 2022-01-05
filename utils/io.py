@@ -9,7 +9,7 @@ from .python_logger import get_logger
 LOGGER = get_logger()
 
 
-def _load_img(img_path, type):
+def _load_img(img_path, type=None):
     # load dicom or nrrd image series in a directory
     # as sitk file
     if type == 'dcm':
@@ -33,6 +33,10 @@ def load_nrrd(img_path):
 
 def load_dcm(img_path):
     return _load_img(img_path, 'dcm')
+
+
+def load_img(img_path):
+    return _load_img(img_path=img_path, type=None)
 
 
 def load_mhd(img_path):

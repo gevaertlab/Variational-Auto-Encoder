@@ -4,6 +4,7 @@
 import os
 import os.path as osp
 from typing import Dict
+import numpy as np
 
 import pandas as pd
 from configs.config_vars import BASE_DIR
@@ -18,7 +19,7 @@ from utils.visualization import (confusion_matrix_models, vis_clustermap,
 from applications.associations import get_stats_results
 
 from .__init__ import TASK_DICT
-from .models import predictTask
+from .models import predict_task
 
 
 class Application:
@@ -36,10 +37,21 @@ class Application:
                  log_name: str,
                  version: int,
                  task_name: str,
+                 task_kwds: dict = {},
                  base_model_name: str = 'VAE3D',
-                 dataloader: Dict = {'train': 'train_dataloader',
-                                     'val': 'val_dataloader'}
+                 dataloaders: Dict = {'train': 'train_dataloader',
+                                      'val': 'val_dataloader'}
                  ):
+        """TODO
+
+        Args:
+            log_name (str): [description]
+            version (int): [description]
+            task_name (str): [description]
+            task_kwds (dict, optional): [description]. Defaults to {}.
+            base_model_name (str, optional): [description]. Defaults to 'VAE3D'.
+            dataloaders (Dict, optional): [description]. Defaults to {'train': 'train_dataloader', 'val': 'val_dataloader'}.
+        """
         self.timer = Timer(
             name=(osp.basename(__file__), self.__class__.__name__))
         self.timer()
@@ -49,7 +61,7 @@ class Application:
         self.base_model_name = base_model_name
         self.log_name = log_name
         self.version = version
-        self.dataloader = dataloader
+        self.dataloaders = dataloaders
 
         # get load and save dir
         self.load_dir = os.path.join(self.LOG_DIR,
@@ -67,11 +79,11 @@ class Application:
         self.exporter = Exporter(base_model_name=base_model_name,
                                  log_name=log_name,
                                  version=version,
-                                 dataloader=self.dataloader)
+                                 dataloaders=self.dataloaders)
         self.embeddings, self.data_names = self.exporter.get_embeddings()
         self.labels = self.exporter.get_labels(
-            task_name, data_names=self.data_names)
-        self.task = TASK_DICT[task_name]()
+            task_name, label_kwds=task_kwds, data_names=self.data_names)
+        self.task = TASK_DICT[task_name](**task_kwds)
 
         # init: results
         self._init_results()
@@ -128,12 +140,12 @@ class Application:
                    self.pred_dict,
                    self.pred_stats,
                    self.hparam_dict)
-        results = predictTask(task=self.task,
-                              X=self.embeddings, Y=self.labels,
-                              models=models,
-                              results=results,
-                              tune_hparams=tune_hparams,
-                              hparam_dict=self.hparam_dict)
+        results = predict_task(task=self.task,
+                               X=self.embeddings, Y=self.labels,
+                               models=models,
+                               results=results,
+                               tune_hparams=tune_hparams,
+                               hparam_dict=self.hparam_dict)
         result_dict, pred_dict, pred_stats, hparam_dict = results
         return result_dict, pred_dict, pred_stats, hparam_dict
 
@@ -152,7 +164,7 @@ class Application:
             f"using {asso_func.__name__} association and {correction_func.__name__} correction ...")
         X, Y = self.preprocess_data()
         self.logger.info(
-            f"data dimentionalities: X={X['train'].shape}, Y={Y['train'].shape}")
+            f"data dimentionalities: X={X['train'].shape}, Y={np.array(Y['train']).shape}")
         stats_df = get_stats_results(X['train'], Y['train'], asso_func)
         # correction
         fdr_df = pd.DataFrame(correction_func(

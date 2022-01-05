@@ -2,6 +2,7 @@
 
 # utils
 from functools import partial
+from re import S
 
 # models
 from sklearn.ensemble import (GradientBoostingRegressor,
@@ -12,18 +13,19 @@ from sklearn.metrics import (accuracy_score, average_precision_score, f1_score,
                              mean_absolute_error, r2_score,
                              mean_absolute_percentage_error,
                              mean_squared_error, precision_score, recall_score,
-                             roc_auc_score)
+                             roc_auc_score, make_scorer)
 # hyperparameter tunning
-from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import GridSearchCV, KFold
 from sklearn.feature_selection import SelectFdr, f_regression, SelectKBest
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.neural_network import MLPClassifier, MLPRegressor
 from sklearn.svm import SVC, SVR
+from torch.utils.data.dataset import random_split
 from utils.python_logger import get_logger
 
-from applications.tasks import TaskBase
+from applications.tasks.task_base import TaskBase
 
 LOGGER = get_logger()
 
@@ -39,7 +41,7 @@ CLASSIFICATION_METRIC_DICT = {'Accuracy': accuracy_score,
                               'Precision': partial(precision_score, average='weighted'),
                               'Recall': partial(recall_score, average='weighted'),
                               'AUROC': partial(roc_auc_score, average='weighted', multi_class='ovr'),
-                              #   'AUPRC': partial(average_precision_score, average='weighted'),
+                              'AUPRC': partial(average_precision_score, average='weighted'),
                               }
 
 
@@ -98,39 +100,71 @@ CLASSIFICATION_MODELS = {'logistic_regression': lr,
                          'random_forest': rf,
                          'mlp': mlp}
 
+# preprocessing for pipeline
+for modelname, modeldict in REGRESSION_MODELS.items():
+    for param, paramvalue in modeldict['params'].items():
+        modeldict['params'] = {}
+        modeldict['params']["predictor__"+param] = paramvalue
+
+for modelname, modeldict in CLASSIFICATION_MODELS.items():
+    for param, paramvalue in modeldict['params'].items():
+        modeldict['params'] = {}
+        modeldict['params']["predictor__"+param] = paramvalue
+
 
 MODELS = {'regression': REGRESSION_MODELS,
           'classification': CLASSIFICATION_MODELS}
 
 
-def modelEvaluation(y_true,
-                    y_pred,
-                    y_proba=None,
-                    y_decision=None,
-                    scoring_func_dict=REGRESSION_METRIC_DICT,
-                    task_type='regression'):
+def model_evaluation(y_true,
+                     y_pred,
+                     y_proba=None,
+                     y_decision=None,
+                     scoring_func_dict=REGRESSION_METRIC_DICT,
+                     task_type='regression'):
     if task_type == "regression":
         return dict((key, func(y_true, y_pred)) for (key, func) in scoring_func_dict.items())
     elif task_type == "classification":
         result_dict = {}
         for (key, func) in scoring_func_dict.items():
-            if key in ['AUROC']:
+            if key == 'AUROC':
+                if y_proba.shape[1] > 2:
+                    y_score=y_proba
+                else:
+                    y_score=y_proba[:,1]
                 result_dict[key] = func(y_true=y_true,
-                                        y_score=y_proba)
-            # elif key == 'AUPRC':
-            #     result_dict[key] = func(y_true=y_true,
-            #                             y_score=y_decision)
+                                        y_score=y_score)
+            elif key == 'AUPRC':
+                continue # NOTE: not implemented at the moment
+                if y_proba.shape[1] > 2:
+                    continue
+                result_dict[key] = func(y_true=y_true,
+                                        y_score=y_proba[:,1])
             else:
                 result_dict[key] = func(y_true=y_true,
                                         y_pred=y_pred)
     return result_dict
 
 
+def grid_cv_model(model, params, X, Y, scoring=None, verbose=1,
+                  cv_params={"n_splits": 3, "shuffle":True, "random_state":9001}):
+    cv = KFold(**cv_params)
+    clf = GridSearchCV(model,
+                       params,
+                       cv=cv,
+                       scoring=scoring,
+                       verbose=int(verbose)*2)  # verbose = 2 (a little more information) or 0
+    clf.fit(X['train'], Y['train'])
+    print(f"best parameters: {clf.best_params_}")
+    return clf
+
+
 def find_best_param(model_meta, X, Y, hparams={}, search=True, verbose=1):
     if search:
         basemodel = model_meta['basemodel']()
-        clf = GridSearchCV(basemodel, model_meta['params'], verbose=int(
-            verbose)*2)  # verbose = 2 (a little more information) or 0
+        clf = GridSearchCV(basemodel,
+                           model_meta['params'],
+                           verbose=int(verbose)*2)  # verbose = 2 (a little more information) or 0
         clf.fit(X['train'], Y['train'])
         print(f"best parameters: {clf.best_params_}")
         return clf.best_params_
@@ -138,12 +172,25 @@ def find_best_param(model_meta, X, Y, hparams={}, search=True, verbose=1):
         return hparams
 
 
-def predictWithModel(task: TaskBase,
-                     X, Y,
-                     model_name: str = 'random_forest',
-                     hparam_dict={},
-                     tune_hparams=True,
-                     verbose=True):
+def model_pipeline(model_base, base_params={}, best_params={}):
+    # new step: feature selection
+    # TODO: implement this
+    model = Pipeline(
+        [('scaler', StandardScaler()),
+         #  ('selector', SelectFdr(score_func=f_regression, alpha=1e-2)),
+         #  ('selector', SelectKBest(score_func=f_regression, k=500)),
+         ('predictor', model_base(**base_params)),
+         ], verbose=True)
+    model.set_params(**best_params)
+    return model
+
+
+def predict_with_model(task: TaskBase,
+                       X, Y,
+                       model_name: str = 'random_forest',
+                       hparam_dict={},
+                       tune_hparams=True,
+                       verbose=True):
     """
     Make predictions with one type of model, hparams are tuned, model results are returned
     Args:
@@ -165,25 +212,26 @@ def predictWithModel(task: TaskBase,
 
     # 1. hparams, either load or search or skip
     model_meta = MODELS[task.task_type][model_name]
-    has_key = model_name in hparam_dict.keys()
-    if has_key:
-        hparams = hparam_dict[model_name]
-    else:
-        hparams = {}
-    best_params = find_best_param(model_meta, x_trans, y_trans,
-                                  hparams=hparams,
-                                  search=(not has_key) and tune_hparams)  # NOTE
-    if not tune_hparams:  # HACK
+    model = model_pipeline(model_base=model_meta['basemodel'])
+    metrics_func_dict = REGRESSION_METRIC_DICT if task.task_type == "regression" else CLASSIFICATION_METRIC_DICT
+    # has_key = model_name in hparam_dict.keys()
+    # if has_key:
+    #     hparams = hparam_dict[model_name]
+    # else:
+    #     hparams = {}
+    if not tune_hparams:
         best_params = {}
-    # new step: feature selection
-    # TODO: implement this
+    else:
+        clf = grid_cv_model(model=model,
+                            params=model_meta['params'],
+                            X=x_trans,
+                            Y=y_trans,)
 
-    model = Pipeline(
-        [('scaler', StandardScaler()),
-        #  ('selector', SelectFdr(score_func=f_regression, alpha=1e-2)),
-         #  ('selector', SelectKBest(score_func=f_regression, k=500)),
-         ('predictor', model_meta['basemodel'](**best_params)),
-         ], verbose=True)
+        best_params = clf.best_params_
+        cv_results = {k:v for k, v in clf.cv_results_.items() if k.endswith("score")}
+
+    model = model_pipeline(model_base=model_meta['basemodel'],
+                           best_params=best_params)
     # 2. train model
     model = model.fit(x_trans['train'], y_trans['train'])
 
@@ -191,22 +239,22 @@ def predictWithModel(task: TaskBase,
     if task.task_type == 'regression':
         y_true, y_pred = Y['val'], \
             task.inverse_transform(Y=model.predict(x_trans['val']))
-        metrics = modelEvaluation(y_true=y_true,
-                                  y_pred=y_pred,
-                                  y_proba=None,
-                                  y_decision=None,
-                                  scoring_func_dict=REGRESSION_METRIC_DICT,
-                                  task_type=task.task_type)
-        # print training results to see if the model can overfit
-        y_train_true, y_train_pred = Y['train'], \
-            task.inverse_transform(Y=model.predict(x_trans['train']))
-        train_metrics = modelEvaluation(y_true=y_train_true,
-                                        y_pred=y_train_pred,
-                                        y_proba=None,
-                                        y_decision=None,
-                                        scoring_func_dict=REGRESSION_METRIC_DICT,
-                                        task_type=task.task_type)
-        LOGGER.info(f"result for training set:{train_metrics}")
+        metrics = model_evaluation(y_true=y_true,
+                                   y_pred=y_pred,
+                                   y_proba=None,
+                                   y_decision=None,
+                                   scoring_func_dict=metrics_func_dict,
+                                   task_type=task.task_type)
+        # # print training results to see if the model can overfit
+        # y_train_true, y_train_pred = Y['train'], \
+        #     task.inverse_transform(Y=model.predict(x_trans['train']))
+        # train_metrics = model_evaluation(y_true=y_train_true,
+        #                                  y_pred=y_train_pred,
+        #                                  y_proba=None,
+        #                                  y_decision=None,
+        #                                  scoring_func_dict=REGRESSION_METRIC_DICT,
+        #                                  task_type=task.task_type)
+        LOGGER.info(f"result for CV:{cv_results}")
         LOGGER.info(f"result for validation set:{metrics}")
         return metrics, y_pred, best_params
 
@@ -217,32 +265,35 @@ def predictWithModel(task: TaskBase,
         y_proba = model.predict_proba(x_trans['val'])
         # y_decision = model.decision_function(X['val'])
         y_decision = None
-        metrics = modelEvaluation(y_true=y_true,
-                                  y_pred=y_pred,
-                                  y_proba=y_proba,
-                                  y_decision=y_decision,
-                                  scoring_func_dict=CLASSIFICATION_METRIC_DICT,
-                                  task_type=task.task_type)
+        metrics = model_evaluation(y_true=y_true,
+                                   y_pred=y_pred,
+                                   y_proba=y_proba,
+                                   y_decision=y_decision,
+                                   scoring_func_dict=metrics_func_dict,
+                                   task_type=task.task_type)
         # print training results to see if the model can overfit
-        train_metrics = modelEvaluation(y_true=Y['train'],
-                                        y_pred=model.predict(x_trans['train']),
-                                        y_proba=model.predict_proba(
-                                            x_trans['train']),
-                                        y_decision=None,
-                                        scoring_func_dict=CLASSIFICATION_METRIC_DICT,
-                                        task_type=task.task_type)
-        LOGGER.info(f"result for training set:{train_metrics}")
+        # train_metrics = model_evaluation(y_true=Y['train'],
+        #                                  y_pred=model.predict(
+        #                                      x_trans['train']),
+        #                                  y_proba=model.predict_proba(
+        #     x_trans['train']),
+        #     y_decision=None,
+        #     scoring_func_dict=CLASSIFICATION_METRIC_DICT,
+        #     task_type=task.task_type)
+        LOGGER.info(f"result for CV:{cv_results}")
         LOGGER.info(f"result for validation set:{metrics}")
         return metrics, y_pred, {'y_proba': y_proba, 'y_decision': y_decision}, best_params
 
 
-def predictTask(task: TaskBase,
-                X, Y,
-                models='all',
-                hparam_dict={},
-                results=[],
-                tune_hparams=True,
-                verbose=True):
+def predict_task(task: TaskBase,
+                 X, Y,
+                 models='all',
+                 hparam_dict={},
+                 results=[],
+                 tune_hparams=True,
+                 verbose=True):
+    # TODO:
+    # 2. draw AUROC and AUPRC curve for classification
     prediction_models = MODELS[task.task_type]
     if models == 'all':
         models = list(prediction_models.keys())
@@ -254,12 +305,12 @@ def predictTask(task: TaskBase,
         pred_dict['true'] = Y['val']
 
     for model_name in models:
-        model_result = predictWithModel(task=task,
-                                        X=X, Y=Y,
-                                        model_name=model_name,
-                                        hparam_dict=hparam_dict,
-                                        tune_hparams=tune_hparams,
-                                        verbose=verbose)
+        model_result = predict_with_model(task=task,
+                                          X=X, Y=Y,
+                                          model_name=model_name,
+                                          hparam_dict=hparam_dict,
+                                          tune_hparams=tune_hparams,
+                                          verbose=verbose)
         if task.task_type == "classification":
             result_dict[model_name], \
                 pred_dict[model_name], \
