@@ -1,5 +1,6 @@
 ''' Defines a torch_lightning Module '''
 import os
+from typing import GenericMeta
 
 import pytorch_lightning as pl
 from torch import optim
@@ -24,6 +25,7 @@ class VAEXperiment(pl.LightningModule):
         self.dataloader_params = {'num_workers': 4,
                                   'pin_memory': True}
         self.dataset = PATCH_DATASETS[params['dataset']]
+        self.save_hyperparameters()  # for loading later
         pass
 
     def forward(self, input: Tensor, **kwargs):  # -> Tensor
@@ -78,10 +80,10 @@ class VAEXperiment(pl.LightningModule):
 
         # visualization using our codes
         vis3d_tensor(recons.data, save_path=os.path.join(f"{self.logger.save_dir}{self.logger.name}/version_{self.logger.version}/media",
-                                                        f"recons_{self.logger.name}_{self.current_epoch}.png"))
+                                                         f"recons_{self.logger.name}_{self.current_epoch}.png"))
 
         vis3d_tensor(test_input.data, save_path=os.path.join(f"{self.logger.save_dir}{self.logger.name}/version_{self.logger.version}/media",
-                                                            f"real_img_{self.logger.name}_{self.current_epoch}.png"))
+                                                             f"real_img_{self.logger.name}_{self.current_epoch}.png"))
         del test_input, recons  # , samples
 
         # draw loss curves
@@ -115,10 +117,12 @@ class VAEXperiment(pl.LightningModule):
         else:
             return optims
 
-    def train_dataloader(self, shuffle=True, drop_last=True):  # -> DataLoader
-        train_ds = self.dataset(root_dir=None,
-                                transform=sitk2tensor,
-                                split='train')
+    def train_dataloader(self, root_dir=None, shuffle=True, drop_last=True):  # -> DataLoader
+        # if self.dataset is already a dataset then proceed
+        if isinstance(self.dataset, GenericMeta):
+            train_ds = self.dataset(root_dir=root_dir,
+                                    transform=sitk2tensor,
+                                    split='train')
         self.num_train_imgs = len(train_ds)
         return DataLoader(dataset=train_ds,
                           batch_size=self.params['batch_size'],
@@ -127,10 +131,11 @@ class VAEXperiment(pl.LightningModule):
                           num_workers=4,
                           pin_memory=True)
 
-    def val_dataloader(self, shuffle=False, drop_last=True):
-        val_ds = self.dataset(root_dir=None,
-                              transform=sitk2tensor,
-                              split='val')
+    def val_dataloader(self, root_dir=None, shuffle=False, drop_last=True):
+        if isinstance(self.dataset, GenericMeta):
+            val_ds = self.dataset(root_dir=root_dir,
+                                  transform=sitk2tensor,
+                                  split='val')
         self.num_val_imgs = len(val_ds)
         self.sample_dataloader = DataLoader(val_ds,
                                             batch_size=self.params['batch_size'],

@@ -10,7 +10,8 @@ from .config_vars import BASE_DIR
 
 
 def _get_file_path(filename):
-    file_path = os.path.join(BASE_DIR, 'configs', filename + '.yaml')
+    file_path = os.path.join(BASE_DIR, 'configs', filename if filename.endswith(
+        ".yaml") else filename + '.yaml')
     return file_path
 
 
