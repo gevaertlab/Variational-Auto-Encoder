@@ -7,6 +7,7 @@ from torch import optim
 from torch.utils.data import DataLoader
 
 from datasets import PATCH_DATASETS
+from datasets.concat_ds import get_concat_dataset
 from datasets.utils import sitk2tensor
 from models._type import Tensor
 from models.vae_base import VAEBackbone
@@ -22,9 +23,13 @@ class VAEXperiment(pl.LightningModule):
         self.params = params
         self.curr_device = None
         self.hold_graph = False
-        self.dataloader_params = {'num_workers': 4,
+        self.dataloader_params = {'num_workers': 12,
                                   'pin_memory': True}
-        self.dataset = PATCH_DATASETS[params['dataset']]
+        if ";" in params['dataset']:
+            ds_name_list = params['dataset'].split(";")
+            self.dataset = get_concat_dataset(ds_name_list)
+        else:
+            self.dataset = PATCH_DATASETS[params['dataset']]
         self.save_hyperparameters()  # for loading later
         pass
 
@@ -104,7 +109,8 @@ class VAEXperiment(pl.LightningModule):
         self.train_dataloader()
         # lr scheduler
         if self.params['max_lr'] is not None:
-            step_per_epoch = self.num_train_imgs // self.params['batch_size'] // 2
+            # debug: // 2
+            step_per_epoch = self.num_train_imgs // self.params['batch_size']
             scheduler = optim.lr_scheduler.OneCycleLR(optims[0],
                                                       epochs=self.params['max_epochs'],
                                                       steps_per_epoch=step_per_epoch,
@@ -113,8 +119,11 @@ class VAEXperiment(pl.LightningModule):
             lr_dict = {'scheduler': scheduler,
                        'interval': 'step'}  # one cycle lr in each epoch
             scheds.append(lr_dict)
+            self.optims = optims
+            self.scheds = scheds
             return optims, scheds
         else:
+            self.optims = optims
             return optims
 
     def train_dataloader(self, root_dir=None, shuffle=True, drop_last=True):  # -> DataLoader
@@ -128,8 +137,7 @@ class VAEXperiment(pl.LightningModule):
                           batch_size=self.params['batch_size'],
                           shuffle=shuffle,
                           drop_last=drop_last,
-                          num_workers=4,
-                          pin_memory=True)
+                          **self.dataloader_params)
 
     def val_dataloader(self, root_dir=None, shuffle=False, drop_last=True):
         if isinstance(self.dataset, GenericMeta):
@@ -141,6 +149,5 @@ class VAEXperiment(pl.LightningModule):
                                             batch_size=self.params['batch_size'],
                                             shuffle=shuffle,
                                             drop_last=drop_last,
-                                            num_workers=4,
-                                            pin_memory=True)
+                                            **self.dataloader_params)
         return [self.sample_dataloader]

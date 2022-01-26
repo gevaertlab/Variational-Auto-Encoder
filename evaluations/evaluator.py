@@ -29,7 +29,7 @@ class BaseEvaluator:
 
     def __init__(self,
                  log_name: str,
-                 version: int,
+                 version: Union[int, str],
                  base_model_name: str = 'VAE3D',
                  ):
         self.log_name = log_name
@@ -94,7 +94,7 @@ class MetricEvaluator(BaseEvaluator):
     def __init__(self,
                  metrics: List,
                  log_name: str,
-                 version: int,
+                 version: Union[int, str],
                  base_model_name: str = 'VAE3D',):
         super().__init__(log_name=log_name,
                          version=version,

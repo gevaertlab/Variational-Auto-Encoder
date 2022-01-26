@@ -45,10 +45,10 @@ def main(config_name=None):
                      logger=vae_logger,
                      callbacks=callback,  # specify callback
                      flush_logs_every_n_steps=10,
-                     num_sanity_val_steps=5,
+                     num_sanity_val_steps=100,
                      distributed_backend='ddp',
                      auto_select_gpus=True,
-                     gpus=2,
+                     gpus=1,  # NOTE: training stucked, see https://github.com/PyTorchLightning/pytorch-lightning/issues/5865
                      **config['trainer_params'])
 
     # experiment
@@ -64,5 +64,5 @@ def main(config_name=None):
 
 
 if __name__ == '__main__':
-    main("train_exps/vae_v1.yaml")
+    main()
     pass

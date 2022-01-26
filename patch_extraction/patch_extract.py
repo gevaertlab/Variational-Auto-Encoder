@@ -129,21 +129,13 @@ class PatchExtract:
         # transform format to load extract
 
         # called load_extract for the whole dataset
-        load_func = self.dataset.load_funcs['ct']
         if not multi:
             for i in tqdm(range(len(self.dataset))):
                 self.load_extract(item=i, save_dir=save_dir,
                                   overwrite=overwrite)
         else:  # NOTE: NOT IMPLEMENTED
-            data_tuple = [
-                (img_path,
-                 load_func,
-                 tuple(center_point),
-                 file_name+'.nrrd',
-                 save_dir) for
-                file_name, (img_path, center_point)  # have to redo this
-                in self.ds_params['data_dict'].items()
-            ]
+            data_tuple = [(i, save_dir, overwrite)
+                          for i in range(len(self.dataset))]
             with Pool(cpu_count()) as p:
                 p.starmap(self.load_extract,
                           tqdm(data_tuple,

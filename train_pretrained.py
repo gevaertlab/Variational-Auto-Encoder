@@ -1,13 +1,14 @@
 """ continue to train from pretrained models """
+import argparse
 import os
 import os.path as osp
-import argparse
+
 import numpy as np
 import torch
 import torch.backends.cudnn as cudnn
-from pytorch_lightning import Trainer
-from pytorch_lightning.callbacks import ModelCheckpoint
 import yaml
+from pytorch_lightning import Trainer
+from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 
 from configs.parse_configs import parse_config, process_config
 from experiment import VAEXperiment
@@ -20,15 +21,19 @@ def parse_args():
     parser.add_argument('--pretrain_ckpt_load_dir', '-d',
                         dest="pretrain_ckpt_load_dir",
                         help='the log directory of pretrained model checkpoint',
-                        default="logs/VAE3D32AUG/version_18")
-    parser.add_argument('--check_val_every_n_epoch',
-                        dest="check_val_every_n_epoch",
-                        help='check validation result for every n epochs',
-                        default=20)
+                        default="logs/VAE3D32AUG/version_33")
+    parser.add_argument('--dataset',
+                        dest="dataset",
+                        help='dataset name to train on',
+                        default="StanfordRadiogenomicsPatchDataset")  # LNDbPatch32Dataset
     parser.add_argument('--max_epochs',
                         dest="max_epochs",
                         help='num of epoch to train',
-                        default=100)
+                        default=1000)
+    parser.add_argument('--note',
+                        dest="note",
+                        help='any note for training, will be saved in config file',
+                        default="")
     args = parser.parse_args()
     return args
 
@@ -50,6 +55,9 @@ def load_ckpt(log_dir="logs/VAE3D32AUG/version_18"):
 def main():
     args = parse_args()
     config = load_config(args.pretrain_ckpt_load_dir)
+    config['note'] = args.note
+    # change training dataset
+    config['exp_params']['dataset'] = args.dataset
 
     vae_logger = VAELogger(
         save_dir=config['logging_params']['save_dir'],
@@ -68,22 +76,28 @@ def main():
     model = VAE_MODELS[config['model_params']
                        ['name']](**config['model_params'])
 
-    # callback
-    callback = ModelCheckpoint(monitor='val_loss',  # if not specified, default save dir
-                               save_top_k=1,
-                               mode='min')
+    # callbacks
+    model_checkpoint = ModelCheckpoint(monitor='val_loss',  # if not specified, default save dir
+                                       save_top_k=1,
+                                       mode='min')
+    early_stopping = EarlyStopping(monitor="val_loss",
+                                   min_delta=0.00,
+                                   patience=3,
+                                   verbose=True,
+                                   mode="auto")
 
     # trainer
     runner = Trainer(default_root_dir=f"{vae_logger.save_dir}",
                      logger=vae_logger,
-                     callbacks=callback,  # specify callback
+                     # specify callback
+                     callbacks=[model_checkpoint, early_stopping],
                      flush_logs_every_n_steps=10,
                      num_sanity_val_steps=5,
                      distributed_backend='ddp',
                      auto_select_gpus=True,
-                     gpus=2,
-                     check_val_every_n_epoch=args.check_val_every_n_epoch,
-                     max_epochs=args.max_epochs)
+                     gpus=1,  # debug
+                     check_val_every_n_epoch=config['trainer_params']['check_val_every_n_epoch'],
+                     max_epochs=int(args.max_epochs))
 
     # experiment
     # import some of the training params

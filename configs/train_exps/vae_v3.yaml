@@ -6,7 +6,7 @@ model_params:
   beta: 1.0e-05
 
 exp_params:
-  dataset: LIDCPatchAugDataset
+  dataset: LIDCPatchAugDataset;LNDbPatch32Dataset
   LR: 0.00002
   batch_size: 36
   # weight_decay: 0.0
@@ -15,10 +15,10 @@ exp_params:
 
 trainer_params:
   max_epochs: 300
-  check_val_every_n_epoch: 20
+  check_val_every_n_epoch: 2
 
 logging_params:
   save_dir: "logs/"
   name: "VAE3D32AUG"
-  visualize_interval: 4 # multiplications of "check_val_every_n_epoch"
+  visualize_interval: 8 # multiplications of "check_val_every_n_epoch"
   manual_seed: 9001

@@ -1,7 +1,5 @@
 """ patch dataset base """
 import os
-from typing import List
-from SimpleITK.SimpleITK import Not
 from abc import ABCMeta, abstractmethod
 import numpy as np
 import SimpleITK as sitk
@@ -126,7 +124,7 @@ class PatchDataset(Dataset):
         return list(np.array(lst)[sorted_idx])
 
 
-class PatchDynamicDataset(Dataset):  # TODO: rethink the usage
+class PatchDynamicDataset(Dataset):  # TODO: implement this
 
     def __init__(self,
                  ct_dataset: CTDataset,
@@ -140,31 +138,3 @@ class PatchDynamicDataset(Dataset):  # TODO: rethink the usage
 
     def __getitem__(self, idx: int):
         raise NotImplementedError
-
-
-class ConcatPatchDataset(Dataset):
-    """
-    concatenate patch datasets
-    Parent:
-        Dataset (pytorch.data.Dataset)
-    """
-
-    def __init__(self,
-                 root_dir: List[str],
-                 transform=None,
-                 split='train',
-                 ratio=0.1):  # -> None
-        super(PatchDataset, self).__init__()
-        self.logger = get_logger(cls_name=self.__class__.__name__)
-        self.root_dirs = root_dir
-        self.transform = transform
-        # set to be relative path to patches from self.root_dir
-        self.patches = []
-        # the split of the dataset object can only be set through
-        # set_split function, initialize self.images
-        self.split = split
-        pass
-    
-
-    def __getitem__(self, index):
-        return super().__getitem__(index)

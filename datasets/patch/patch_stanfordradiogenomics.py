@@ -30,6 +30,10 @@ class StanfordRadiogenomicsPatchDataset(PatchDataset):
         - Initialize self.patches
         """
         assert split in self.SPLIT_SET, "split invalid"
+        if split == 'val':
+            self.logger.info(
+                "this dataset only has train/test splits, setting val as test")
+            split = "test"
         patches_list = self._get_img_files()
         patient_list = self._get_patient_list(patches_list)
         if split == 'all':

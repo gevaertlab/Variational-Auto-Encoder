@@ -23,10 +23,13 @@ def parse_config():
                         metavar='FILE',
                         help='config file name in /configs folder',
                         default='exp_new/vae32aug_exp')
-
+    parser.add_argument('--note',
+                        dest="note",
+                        help='any note for training, will be saved in config file',
+                        default="")
     args = parser.parse_args()
     config = process_config(args.filename)
-
+    config['note'] = args.note
     return config
 
 

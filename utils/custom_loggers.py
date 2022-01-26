@@ -1,13 +1,17 @@
-import logging
 import datetime
+import logging
+import os
 from typing import Optional
+
+import pandas as pd
 from pytorch_lightning.loggers import CSVLogger, TestTubeLogger
 from pytorch_lightning.utilities import _module_available
-import pandas as pd
 
-import os
 from .funcs import getVersion, saveConfig
+from .python_logger import get_logger
 from .visualization import vis_loss_curve, vis_loss_curve_diff_scale
+
+LOGGER = get_logger()
 
 _TESTTUBE_AVAILABLE = _module_available("test_tube")
 
@@ -72,42 +76,48 @@ class VAELogger(TestTubeLogger):
 
     def draw_loss_curve(self):
         log = self._load_log_file()
+        try:
+            train_loss_dict = self._get_vis_loss_dict(log, 'loss')
+            val_loss_dict = self._get_vis_loss_dict(log, 'val_loss')
 
-        train_loss_dict = self._get_vis_loss_dict(log, 'loss')
-        val_loss_dict = self._get_vis_loss_dict(log, 'val_loss')
-
-        vis_loss_curve(log_path=self.abs_log_path,
-                       data={'train': train_loss_dict, 'val': val_loss_dict})
-
+            vis_loss_curve(log_path=self.abs_log_path,
+                           data={'train': train_loss_dict, 'val': val_loss_dict})
+        except Exception as e:
+            LOGGER.warning(e)
         pass
 
     def draw_kl_recon_loss(self):
         log = self._load_log_file()
+        try:
+            recon_loss_dict = self._get_vis_loss_dict(
+                log, 'Reconstruction_Loss')
+            kl_loss_dict = self._get_vis_loss_dict(log, 'KLD')
 
-        recon_loss_dict = self._get_vis_loss_dict(log, 'Reconstruction_Loss')
-        kl_loss_dict = self._get_vis_loss_dict(log, 'KLD')
-
-        vis_loss_curve_diff_scale(log_path=self.abs_log_path,
-                                  data={'recon loss': recon_loss_dict,
-                                        'kl loss': kl_loss_dict})
+            vis_loss_curve_diff_scale(log_path=self.abs_log_path,
+                                      data={'recon loss': recon_loss_dict,
+                                            'kl loss': kl_loss_dict})
+        except Exception as e:
+            LOGGER.warning(e)
         pass
 
     def draw_multiple_loss_curves(self):
         log = self._load_log_file()
+        try:
+            recon_loss_dict = self._get_vis_loss_dict(log, 'Reconstruction_Loss')
+            kl_loss_dict = self._get_vis_loss_dict(log, 'KLD')
+            train_loss_dict = self._get_vis_loss_dict(log, 'loss')
+            val_loss_dict = self._get_vis_loss_dict(log, 'val_loss')
+            lr_dict = self._get_vis_loss_dict(log, 'lr')
 
-        recon_loss_dict = self._get_vis_loss_dict(log, 'Reconstruction_Loss')
-        kl_loss_dict = self._get_vis_loss_dict(log, 'KLD')
-        train_loss_dict = self._get_vis_loss_dict(log, 'loss')
-        val_loss_dict = self._get_vis_loss_dict(log, 'val_loss')
-        lr_dict = self._get_vis_loss_dict(log, 'lr')
-
-        vis_loss_curve_diff_scale(log_path=self.abs_log_path,
-                                  data={'train val losses': [{'train loss': train_loss_dict,
-                                                              'val loss': val_loss_dict}],
-                                        'recon loss': recon_loss_dict,
-                                        'kl loss': kl_loss_dict,
-                                        'learning rate': lr_dict},
-                                  name="diagnostic_loss_curve.jpeg")
+            vis_loss_curve_diff_scale(log_path=self.abs_log_path,
+                                    data={'train val losses': [{'train loss': train_loss_dict,
+                                                                'val loss': val_loss_dict}],
+                                            'recon loss': recon_loss_dict,
+                                            'kl loss': kl_loss_dict,
+                                            'learning rate': lr_dict},
+                                    name="diagnostic_loss_curve.jpeg")
+        except Exception as e:
+            LOGGER.warning(e)
 
     def add_notes(self):
         # add notes to config_file
