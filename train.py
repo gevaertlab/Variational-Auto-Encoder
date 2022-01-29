@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import torch.backends.cudnn as cudnn
 from pytorch_lightning import Trainer
-from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 
 from configs.parse_configs import parse_config, process_config
 from experiment import VAEXperiment
@@ -36,14 +36,21 @@ def main(config_name=None):
                        ['name']](**config['model_params'])
 
     # callback
-    callback = ModelCheckpoint(monitor='val_loss',  # if not specified, default save dir
-                               save_top_k=1,
-                               mode='min')
+    model_checkpoint = ModelCheckpoint(monitor='val_loss',  # if not specified, default save dir
+                                       save_top_k=1,
+                                       mode='min')
+
+    early_stopping = EarlyStopping(monitor="val_loss",
+                                   min_delta=0.00,
+                                   patience=10,
+                                   verbose=True,
+                                   mode="auto")
 
     # trainer
     runner = Trainer(default_root_dir=f"{vae_logger.save_dir}",
                      logger=vae_logger,
-                     callbacks=callback,  # specify callback
+                     # specify callback
+                     callbacks=[model_checkpoint, early_stopping],
                      flush_logs_every_n_steps=10,
                      num_sanity_val_steps=100,
                      distributed_backend='ddp',

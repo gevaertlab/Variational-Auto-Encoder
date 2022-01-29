@@ -14,8 +14,8 @@ exp_params:
   final_div_factor: 10000
 
 trainer_params:
-  max_epochs: 300
-  check_val_every_n_epoch: 20
+  max_epochs: 500
+  check_val_every_n_epoch: 50
 
 logging_params:
   save_dir: "logs/"

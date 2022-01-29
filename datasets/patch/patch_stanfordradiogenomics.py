@@ -50,3 +50,14 @@ class StanfordRadiogenomicsPatchDataset(PatchDataset):
                 f"patient split: train:{len(idx['train'])}, test:{len(idx['test'])}")
         self._split = split
         return split
+
+
+class StanfordRadiogenomicsPatchAugDataset(StanfordRadiogenomicsPatchDataset):
+
+    def __init__(self, *args, **kwargs):  # -> None
+        if (not kwargs) or ('root_dir' not in kwargs) or (kwargs['root_dir'] is None):
+            kwargs['root_dir'] = osp.join(
+                DS_ROOT_DIR, 'StanfordRadiogenomics/patch-32-aug/')
+        super(StanfordRadiogenomicsPatchAugDataset,
+              self).__init__(ratio=0.3, *args, **kwargs)
+        pass

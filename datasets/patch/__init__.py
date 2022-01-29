@@ -1,4 +1,4 @@
 from .patch_ds import PatchDataset, PatchDynamicDataset
 from .patch_lidc import LIDCPatchDataset, LIDCPatchLabelDataset, LIDCPatchAugDataset
-from .patch_lndb import LNDbPatchDataset, LNDbPatch32Dataset
-from .patch_stanfordradiogenomics import StanfordRadiogenomicsPatchDataset
+from .patch_lndb import LNDbPatchDataset, LNDbPatch32Dataset, LNDbPatch32AugDataset
+from .patch_stanfordradiogenomics import StanfordRadiogenomicsPatchDataset, StanfordRadiogenomicsPatchAugDataset

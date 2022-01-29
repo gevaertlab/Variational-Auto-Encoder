@@ -14,14 +14,18 @@ from .patch import (LIDCPatchAugDataset,
                     LIDCPatchLabelDataset,
                     LNDbPatchDataset,
                     LNDbPatch32Dataset,
-                    StanfordRadiogenomicsPatchDataset)
+                    LNDbPatch32AugDataset,
+                    StanfordRadiogenomicsPatchDataset,
+                    StanfordRadiogenomicsPatchAugDataset)
 
 PATCH_DATASETS = {'LIDCPatchDataset': LIDCPatchDataset,
                   'LIDCPatchAugDataset': LIDCPatchAugDataset,
                   'LNDbPatchDataset': LNDbPatchDataset,
                   'LIDCPatchLabelDataset': LIDCPatchLabelDataset,
                   'LNDbPatch32Dataset': LNDbPatch32Dataset,
-                  'StanfordRadiogenomicsPatchDataset': StanfordRadiogenomicsPatchDataset}
+                  'LNDbPatch32AugDataset': LNDbPatch32AugDataset,
+                  'StanfordRadiogenomicsPatchDataset': StanfordRadiogenomicsPatchDataset,
+                  'StanfordRadiogenomicsPatchAugDataset': StanfordRadiogenomicsPatchAugDataset}
 
 CT_DATASETS = {'LIDCDataset': LIDCDataset,
                'LNDbDataset': LNDbDataset,

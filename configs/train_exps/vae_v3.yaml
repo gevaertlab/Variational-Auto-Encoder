@@ -6,7 +6,7 @@ model_params:
   beta: 1.0e-05
 
 exp_params:
-  dataset: LIDCPatchAugDataset;LNDbPatch32Dataset
+  dataset: LIDCPatchAugDataset;LNDbPatch32AugDataset
   LR: 0.00002
   batch_size: 36
   # weight_decay: 0.0
@@ -14,8 +14,8 @@ exp_params:
   final_div_factor: 10000
 
 trainer_params:
-  max_epochs: 300
-  check_val_every_n_epoch: 2
+  max_epochs: 500
+  check_val_every_n_epoch: 50
 
 logging_params:
   save_dir: "logs/"

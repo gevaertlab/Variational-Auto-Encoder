@@ -13,7 +13,7 @@ def get_concat_dataset(patch_datasets: List):
     Parent:
         Dataset (pytorch.data.Dataset)
     """
-    patch_datasets = {pd:PATCH_DATASETS[pd] for pd in patch_datasets}
+    patch_datasets = {pd: PATCH_DATASETS[pd] for pd in patch_datasets}
 
     class ConcatPatchDataset(Dataset):
 

@@ -80,9 +80,10 @@ def main():
     model_checkpoint = ModelCheckpoint(monitor='val_loss',  # if not specified, default save dir
                                        save_top_k=1,
                                        mode='min')
+
     early_stopping = EarlyStopping(monitor="val_loss",
                                    min_delta=0.00,
-                                   patience=3,
+                                   patience=10,
                                    verbose=True,
                                    mode="auto")
 
