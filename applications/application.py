@@ -18,7 +18,7 @@ from utils.visualization import (confusion_matrix_models, vis_clustermap,
 
 from applications.associations import get_stats_results
 
-from .__init__ import TASK_DICT
+from .__init__ import get_task
 from .models import predict_task
 
 
@@ -83,7 +83,7 @@ class Application:
         self.embeddings, self.data_names = self.exporter.get_embeddings()
         self.labels = self.exporter.get_labels(
             task_name, label_kwds=task_kwds, data_names=self.data_names)
-        self.task = TASK_DICT[task_name](**task_kwds)
+        self.task = get_task(task_name)(**task_kwds)
 
         # init: results
         self._init_results()
@@ -336,7 +336,7 @@ class Application:
             self.logger.info(f"Saved figure to {diagnosis_figure_file}")
         pass
 
-    def visualize(self):
+    def visualize(self, figures=["clustermap", "heatmap", "pca", "tsne", "umap"]):
         """ visualizing with PCA and t-SNE and heatmap for embeddings with label """
         X, Y = self.preprocess_data()
         save_dir = os.path.join(self.APP_DIR,
@@ -346,14 +346,15 @@ class Application:
         else:
             kwarg = {}
 
+        
         # train
-        # vis_clustermap({'features': X['train'], 'nodule': Y['train']},
-        #                xlabel='features', ylabel='nodule', task_name=self.task_name,
-        #                save_path=osp.join(save_dir,
-        #                                   f"{self.version}_{self.task_name}_clustermap_train.jpeg"))
-        # vis_heatmap(X['train'], save_path=os.path.join(
-        #             save_dir, f"{self.version}_heatmap_train.jpeg"),
-        #             xlabel='features', ylabel='nodule')
+        vis_clustermap({'features': X['train'], 'nodule': Y['train']},
+                       xlabel='features', ylabel='nodule', task_name=self.task_name,
+                       save_path=osp.join(save_dir,
+                                          f"{self.version}_{self.task_name}_clustermap_train.jpeg"))
+        vis_heatmap(X['train'], save_path=os.path.join(
+                    save_dir, f"{self.version}_heatmap_train.jpeg"),
+                    xlabel='features', ylabel='nodule')
         vis_pca(data=X['train'], label=Y['train'],
                 save_path=os.path.join(
                     save_dir, f"{self.version}_{self.task_name}_pca_train.jpeg"),
@@ -364,12 +365,12 @@ class Application:
                  label_name=self.task_name, **kwarg)
 
         # val
-        # vis_clustermap({'features': X['train'], 'nodule': Y['train']},
-        #                xlabel='features', ylabel='nodule', task_name=self.task_name,
-        #                save_path=osp.join(save_dir,
-        #                                   f"{self.version}_{self.task_name}_clustermap_test.jpeg"))
-        # vis_heatmap(X['val'], save_path=os.path.join(
-        #             save_dir, f"{self.version}_heatmap_val.jpeg"))
+        vis_clustermap({'features': X['train'], 'nodule': Y['train']},
+                       xlabel='features', ylabel='nodule', task_name=self.task_name,
+                       save_path=osp.join(save_dir,
+                                          f"{self.version}_{self.task_name}_clustermap_test.jpeg"))
+        vis_heatmap(X['val'], save_path=os.path.join(
+                    save_dir, f"{self.version}_heatmap_val.jpeg"))
         vis_pca(data=X['val'], label=Y['val'],
                 save_path=os.path.join(
                     save_dir, f"{self.version}_{self.task_name}_pca_val.jpeg"),

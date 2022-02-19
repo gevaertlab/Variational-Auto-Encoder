@@ -1,6 +1,6 @@
 ''' Defines a torch_lightning Module '''
 import os
-from typing import GenericMeta
+from typing import GenericMeta, Union
 
 import pytorch_lightning as pl
 from torch import optim
@@ -9,17 +9,24 @@ from torch.utils.data import DataLoader
 from datasets import PATCH_DATASETS
 from datasets.concat_ds import get_concat_dataset
 from datasets.utils import sitk2tensor
+from models import VAE_MODELS
 from models._type import Tensor
 from models.vae_base import VAEBackbone
 from utils.visualization import vis3d_tensor
+from utils import get_logger
 
 
 class VAEXperiment(pl.LightningModule):
 
-    def __init__(self, vae_model: VAEBackbone, params: dict):  # -> None
+    def __init__(self, vae_model: Union[dict, VAEBackbone], params: dict):  # -> None
         super(VAEXperiment, self).__init__()
+        # initializing model
+        if isinstance(vae_model, dict):  # model is actually param dict
+            vae_model = VAE_MODELS[vae_model['name']](**params)
+            self.model = vae_model
+        elif isinstance(vae_model, VAEBackbone):
+            self.model = vae_model
 
-        self.model = vae_model
         self.params = params
         self.curr_device = None
         self.hold_graph = False
@@ -31,6 +38,7 @@ class VAEXperiment(pl.LightningModule):
         else:
             self.dataset = PATCH_DATASETS[params['dataset']]
         self.save_hyperparameters()  # for loading later
+        self.LOGGER = get_logger(cls_name=self.__class__.__name__)
         pass
 
     def forward(self, input: Tensor, **kwargs):  # -> Tensor
@@ -151,3 +159,10 @@ class VAEXperiment(pl.LightningModule):
                                             drop_last=drop_last,
                                             **self.dataloader_params)
         return [self.sample_dataloader]
+
+    def verbose_info(self):
+        self.LOGGER.info(
+            f"Implemented vae models: {VAE_MODELS.keys()}")
+        self.LOGGER.info(
+            f"Implemented patch datasets: {PATCH_DATASETS.keys()}")
+        pass

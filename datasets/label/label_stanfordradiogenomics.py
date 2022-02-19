@@ -1,22 +1,25 @@
 from datasets.ct.ct_stanfordradiogenomics import StanfordRadiogenomicsDataset
 from .label_ds import Label
+from typing import List
 
 
 class LabelStanfordRadiogenomics(Label):
 
     def __init__(self, dataset=StanfordRadiogenomicsDataset(),
                  name: str = 'Tumor',
+                 dataset_name=None,
                  **kwds):
-        super().__init__(name=name, **kwds)
+        super().__init__(name=name, dataset_name=dataset_name, **kwds)
         self.dataset = dataset
         self.label_name = name
         pass
 
     def match_label(self, data_name: str):
+        # e.g. data_name = 'R01-001.0.Aug00'
         pid = data_name.split('.')[0]
         metadata = self.dataset.get_info(pid)
-        info = metadata[1]['meta_info'][self.label_name]
-        return info
+        label = metadata[1]['meta_info'][self.label_name]
+        return label
 
 
 class LabelStfRG(LabelStanfordRadiogenomics):
@@ -45,6 +48,143 @@ class LabelStfRGSmoking(LabelStanfordRadiogenomics):
 
     def __init__(self, name='Smoking status', **kwds) -> None:
         super().__init__(name=name, **kwds)
+
+
+class LabelStfRGVolume(LabelStanfordRadiogenomics):
+
+    def __init__(self, name='volume', dataset_name="StfRadiogenomics", **kwds) -> None:
+        super().__init__(name=name, dataset_name=dataset_name, **kwds)
+
+
+# new feature, classes are re-grouped.
+class LabelStfReGroup(LabelStanfordRadiogenomics):
+    """ because handling NA values, so label should all be string !!! """
+
+    def __init__(self, name, regroup_tuples: List, na_value='NA', **kwds) -> None:
+        """AI is creating summary for __init__
+
+        Args:
+            name ([type]): [description]
+            regroup_tuple (Tuple): {e.g. [(["T1", "T1a"], "T1"), (["T2b"], "T2")]}
+        """
+        super().__init__(name=name, **kwds)
+        self.regroup_tuples = regroup_tuples
+        assert any(isinstance(t[1], str) for t in self.regroup_tuples), "regroup type should be string"
+        self.regroup_dict = self.init_regroup_dict(regroup_tuples)
+        self.na_value = na_value
+        pass
+
+    def init_regroup_dict(self, regroup_tuples):
+        regroup_dict = {}
+        for klist, v in regroup_tuples:
+            for k in klist:
+                regroup_dict[k] = v
+
+        return regroup_dict
+
+    def regroup(self, label):
+        # remove first and end spaces
+        label = "".join(label.rstrip().lstrip())
+        if label in self.regroup_dict:
+            return self.regroup_dict[label]
+        else:
+            return self.na_value
+
+    def match_label(self, data_name: str):
+        pid = data_name.split('.')[0]
+        metadata = self.dataset.get_info(pid)
+        label = metadata[1]['meta_info'][self.label_name]
+        return self.regroup(label)
+
+
+class LabelStfTStage(LabelStfReGroup):
+
+    def __init__(self,
+                 name='Pathological T stage',
+                 regroup_tuples=[(["T1a", "T1b"], "T1"),
+                                 (["T2a", "T2b", "T3", "T4"], "T2+")],
+                 **kwds):
+        super().__init__(name=name, regroup_tuples=regroup_tuples, kwds=kwds)
+        pass
+
+
+class LabelStfNStage(LabelStfReGroup):
+
+    def __init__(self,
+                 name='Pathological N stage',
+                 regroup_tuples=[(["N0"], "N0"),
+                                 (["N1", "N2"], "N1+")],
+                 **kwds):
+        super().__init__(name=name, regroup_tuples=regroup_tuples, kwds=kwds)
+        pass
+
+
+class LabelStfAJCC(LabelStfReGroup):
+
+    def __init__(self,
+                 name='AJCC Staging (Version 7)',
+                 regroup_tuples=[(["IA", "IB"], "I"),
+                                 (["IIA", "IIB", "IIIA", "IIIB", "IV"], "II+")],
+                 **kwds):
+        super().__init__(name=name, regroup_tuples=regroup_tuples, kwds=kwds)
+        pass
+
+
+class LabelStfHisGrade(LabelStfReGroup):
+
+    def __init__(self,
+                 name='Histopathological Grade',
+                 regroup_tuples=[(["G1 Well differentiated"], "G1"),
+                                 (["G2 Moderately differentiated"], "G2"),
+                                 (["G3 Poorly differentiated"], "G3")],
+                 **kwds):
+        super().__init__(name=name, regroup_tuples=regroup_tuples, kwds=kwds)
+        pass
+
+
+class LabelStfRGLymphInvasion(LabelStfReGroup):
+
+    def __init__(self,
+                 name='Lymphovascular invasion',
+                 dataset_name="StfRadiogenomics",
+                 regroup_tuples=[(["Absent"], "Absent"),
+                                 (["Present"], "Present")],
+                 **kwds) -> None:
+        super().__init__(name=name,
+                         dataset_name=dataset_name,
+                         regroup_tuples=regroup_tuples,
+                         **kwds)
+
+
+class LabelStfRGPleuralInvasion(LabelStanfordRadiogenomics):
+
+    def __init__(self,
+                 name='Pleural invasion (elastic, visceral, or parietal)',
+                 dataset_name="StfRadiogenomics",
+                 **kwds) -> None:
+        super().__init__(name=name, dataset_name=dataset_name, **kwds)
+
+
+class LabelStfEGFRMutation(LabelStfReGroup):
+
+    def __init__(self,
+                 name='EGFR mutation status',
+                 regroup_tuples=[(["Mutant"], "Mutant"),
+                                 (["Wildtype"], "Wildtype"), ],
+                 **kwds):
+        super().__init__(name=name, regroup_tuples=regroup_tuples, kwds=kwds)
+        pass
+
+
+class LabelStfKRASMutation(LabelStfReGroup):
+
+    def __init__(self,
+                 name='KRAS mutation status',
+                 regroup_tuples=[(["Mutant"], "Mutant"),
+                                 (["Wildtype"], "Wildtype"), ],
+                 **kwds):
+        super().__init__(name=name, regroup_tuples=regroup_tuples, kwds=kwds)
+        pass
 
 
 # 'Case ID', 'Event Name', 'R01 RNASeq ID', 'U01 RNASeq ID', 'GSM ID', 'Research Study',

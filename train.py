@@ -31,20 +31,16 @@ def main(config_name=None):
     cudnn.deterministic = True
     cudnn.benchmark = False
 
-    # model
-    model = VAE_MODELS[config['model_params']
-                       ['name']](**config['model_params'])
-
     # callback
     model_checkpoint = ModelCheckpoint(monitor='val_loss',  # if not specified, default save dir
                                        save_top_k=1,
                                        mode='min')
 
     early_stopping = EarlyStopping(monitor="val_loss",
-                                   min_delta=0.00,
-                                   patience=10,
+                                   min_delta=0.0,
+                                   patience=2,
                                    verbose=True,
-                                   mode="auto")
+                                   mode="min")
 
     # trainer
     runner = Trainer(default_root_dir=f"{vae_logger.save_dir}",
@@ -61,13 +57,17 @@ def main(config_name=None):
     # experiment
     # import some of the training params
     config['exp_params']['max_epochs'] = config['trainer_params']['max_epochs']
-    experiment = VAEXperiment(model, config['exp_params'])
+    experiment = VAEXperiment(config['model_params'], config['exp_params'])
 
-    print(f"======= Training {config['model_params']['name']} =======")
+    if "info" in config:
+        experiment.verbose_info()
+        pass
+    else:
+        print(f"======= Training {config['model_params']['name']} =======")
 
-    # train
-    runner.fit(experiment)
-    pass
+        # train
+        runner.fit(experiment)
+        pass
 
 
 if __name__ == '__main__':

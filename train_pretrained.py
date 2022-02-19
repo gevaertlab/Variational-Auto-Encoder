@@ -11,9 +11,12 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 
 from configs.parse_configs import parse_config, process_config
+from datasets import PATCH_DATASETS
 from experiment import VAEXperiment
 from models import VAE_MODELS
-from utils.custom_loggers import VAELogger  # logger
+from models.vae_base import VAEBackbone
+from utils.custom_loggers import VAELogger, get_logger  # logger
+LOGGER = get_logger()
 
 
 def parse_args():
@@ -21,11 +24,16 @@ def parse_args():
     parser.add_argument('--pretrain_ckpt_load_dir', '-d',
                         dest="pretrain_ckpt_load_dir",
                         help='the log directory of pretrained model checkpoint',
-                        default="logs/VAE3D32AUG/version_33")
+                        default="logs/VAE3D32AUG/version_57")
     parser.add_argument('--dataset',
                         dest="dataset",
-                        help='dataset name to train on',
-                        default="StanfordRadiogenomicsPatchDataset")  # LNDbPatch32Dataset
+                        help=f'dataset name to train on, patch_datasets: {PATCH_DATASETS.keys()}',
+                        default="StanfordRadiogenomicsPatchAugDataset")  # LNDbPatch32Dataset
+    parser.add_argument('--learning_rate', '-lr',
+                        dest="learning_rate",
+                        help='float; learning rate to train, typically smaller, 0 means the same',
+                        default=0)  # LNDbPatch32Dataset
+
     parser.add_argument('--max_epochs',
                         dest="max_epochs",
                         help='num of epoch to train',
@@ -38,7 +46,7 @@ def parse_args():
     return args
 
 
-def load_config(log_dir="logs/VAE3D32AUG/version_18"):
+def load_config(log_dir="logs/VAE3D32AUG/version_57"):
     with open(osp.join(log_dir, "config.yaml"), 'r') as file:
         config = yaml.safe_load(file)
     return config
@@ -48,17 +56,31 @@ def load_ckpt(log_dir="logs/VAE3D32AUG/version_18"):
     ckpt_dir = osp.join(log_dir, "checkpoints")
     ckpt_path = osp.join(ckpt_dir, sorted(os.listdir(ckpt_dir))[-1])
     ckpt = torch.load(ckpt_path)
-    print(f"loaded from {ckpt_path}")
+    LOGGER.info(f"loaded from {ckpt_path}")
     return ckpt
 
 
+def freeze_model(model: VAEBackbone, freeze_params: dict):
+    for name, layer_list in freeze_params.items():
+        part = model.__getattr__(name)
+        for l in layer_list:
+            for pname, param in part[l].named_parameters():
+                param.requires_grad = False
+    return model
+
+
 def main():
+    # parse args
     args = parse_args()
     config = load_config(args.pretrain_ckpt_load_dir)
     config['note'] = args.note
     # change training dataset
     config['exp_params']['dataset'] = args.dataset
+    # change LR
+    if args.learning_rate:
+        config['exp_params']['LR'] = float(args.learning_rate)
 
+    # logger
     vae_logger = VAELogger(
         save_dir=config['logging_params']['save_dir'],
         name=config['logging_params']['name'],
@@ -82,10 +104,10 @@ def main():
                                        mode='min')
 
     early_stopping = EarlyStopping(monitor="val_loss",
-                                   min_delta=0.00,
-                                   patience=10,
+                                   min_delta=0.0,
+                                   patience=4,
                                    verbose=True,
-                                   mode="auto")
+                                   mode="min")
 
     # trainer
     runner = Trainer(default_root_dir=f"{vae_logger.save_dir}",
@@ -106,9 +128,15 @@ def main():
     experiment = VAEXperiment(model, config['exp_params'])
 
     # loading weights
-    ckpt = load_ckpt()
+    ckpt = load_ckpt(args.pretrain_ckpt_load_dir)
     experiment.load_state_dict(ckpt['state_dict'])
     print(f"======= Training {config['model_params']['name']} =======")
+
+    # freeze some layers
+    # len encoder = 4, len decoder = 3
+    freeze_params = {"encoder": [0, 1], "decoder": [2]}
+    experiment.model = freeze_model(
+        experiment.model, freeze_params=freeze_params)
 
     # train
     runner.fit(experiment)

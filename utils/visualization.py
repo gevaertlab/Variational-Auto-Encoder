@@ -459,8 +459,8 @@ def vis_clustermap(data: Dict[str, np.ndarray],
     pass
 
 
-def get_cmap(data: np.ndarray, cmap: str):
-    if isinstance(data, list):
+def get_cmap(data: Union[np.ndarray, list], cmap: str):
+    if isinstance(data, list) or isinstance(data, np.ndarray):
         udata = list(set(data))
     else:
         LOGGER.error(f"not implemented case: {type(data)}")

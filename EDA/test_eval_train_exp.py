@@ -56,7 +56,7 @@ def test_recon_images_for_lndb_dataset():
     pass
 
 
-def test_recon_images_for_stf_dataset():
+def test_recon_images_for_stf_dataset(version):
     from datasets import PATCH_DATASETS
     import os.path as osp
     from datasets.utils import sitk2tensor
@@ -74,16 +74,10 @@ def test_recon_images_for_stf_dataset():
                          drop_last=False,
                          num_workers=4,
                          pin_memory=True)
-    # re = ReconEvaluator(vis_dir=osp.join(os.getcwd(), "evaluations/results/"),
-    #                     log_name='VAE3D32AUG',
-    #                     version=18)
-    # re(dataloader=lndb_dl)
-    me = MetricEvaluator(metrics=["SSIM", "MSE", "PSNR"],
-                         log_name='VAE3D32AUG',
-                         version=39)
-    metrics_dict = me.calc_metrics(dataloader=lndb_dl)
-    for k, v in metrics_dict.items():
-        print(f"{k}: mean value = {np.mean(v)}")
+    re = ReconEvaluator(vis_dir=osp.join(os.getcwd(), "evaluations/results/"),
+                        log_name='VAE3D32AUG',
+                        version=version)
+    re(dataloader=lndb_dl)
     pass
 
 
@@ -107,7 +101,7 @@ def test_metrics_for_stf_dataset():
                          pin_memory=True)
     me = MetricEvaluator(metrics=["SSIM", "MSE", "PSNR"],
                          log_name='VAE3D32AUG',
-                         version=47)
+                         version=60)
     metrics_dict = me.calc_metrics(dataloader=lndb_dl)
     for k, v in metrics_dict.items():
         print(f"{k}: mean value = {np.mean(v)}")
@@ -131,7 +125,7 @@ def test_metrics_calculation_for_lndb_dataset():
                          pin_memory=True)
     me = MetricEvaluator(metrics=["SSIM", "MSE", "PSNR"],
                          log_name='VAE3D32AUG',
-                         version=47)
+                         version=60)
     metrics_dict = me.calc_metrics(dataloader=lndb_dl)
     for k, v in metrics_dict.items():
         print(f"{k}: mean value = {np.mean(v)}")
@@ -139,7 +133,8 @@ def test_metrics_calculation_for_lndb_dataset():
 
 
 if __name__ == "__main__":
-    # test_recon_images_for_stf_dataset()
+    for v in [49, 51, 53, 57, 58, 59, 60]:
+        test_recon_images_for_stf_dataset(version=v)
     # test_metrics_calculation_for_lidc_dataset()
     # test_metrics_for_stf_dataset()
-    test_metrics_calculation_for_lndb_dataset()
+    # test_metrics_calculation_for_lndb_dataset()

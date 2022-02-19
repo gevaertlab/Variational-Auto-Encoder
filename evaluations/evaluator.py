@@ -150,17 +150,24 @@ class ReconEvaluator(BaseEvaluator):
                   dataloader='val_dataloader',
                   dl_params={'shuffle': False, 'drop_last': False},
                   num_batches=10):
+        if (not isinstance(dataloader, int)) and ("name" not in dl_params):
+            self.logger.warning(
+                "didn't specify dataset name, default as \'unknown\'")
+            dl_params['name'] = "unknown"
+        elif isinstance(dataloader, int):
+            dl_params['name'] = dataloader
+
         dataloader = self._parse_dataloader(dataloader, dl_params=dl_params)
         for i, (batch, file_names) in enumerate(dataloader):
             output = self.module.model.forward(batch)
             # detach
             batch, recon_batch = batch.detach(), output[0].detach()
-            vis3d_tensor(img_tensor=batch,
+            vis3d_tensor(img_tensor=batch,  # TODO: add names
                          save_path=osp.join(self.vis_dir,
-                                            f"{self.name_prefix}{str(i).zfill(2)}_image.jpeg"))
+                                            f"{self.name_prefix}_{dl_params['name']}_{str(i).zfill(2)}_image.jpeg"))
             vis3d_tensor(img_tensor=recon_batch,
                          save_path=osp.join(self.vis_dir,
-                                            f"{self.name_prefix}{str(i).zfill(2)}_recon.jpeg"))
+                                            f"{self.name_prefix}_{dl_params['name']}_{str(i).zfill(2)}_recon.jpeg"))
             if i >= num_batches:
                 return
         pass

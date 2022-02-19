@@ -33,7 +33,7 @@ class StanfordRadiogenomicsDataset(CTDataset):
 
         self.load_funcs['ct'] = load_img
         self.load_funcs['seg'] = load_img
-        if not self._ds_info.data_dict or reset_info:
+        if (not self._ds_info.data_dict) or reset_info:
             self.register()  # saving this
         pass
 
@@ -41,13 +41,25 @@ class StanfordRadiogenomicsDataset(CTDataset):
         img_dir = osp.join(self.root_dir, "Images")
         seg_dir = osp.join(self.root_dir, "Segmentations")
         img_files = os.listdir(img_dir)
-        seg_files = os.listdir(seg_dir)
+        seg_dirs = os.listdir(seg_dir)
 
-        def rep_img(img_file_name):
-            return img_file_name.replace('img.nii.gz', 'msk.nii.gz')
 
-        filelist = [(imgf, rep_img(imgf))
-                    for imgf in img_files if rep_img(imgf) in seg_files]
+        # def rep_img(img_file_name):
+        #     return img_file_name.replace('img.nii.gz', 'msk.nii.gz')
+
+        # filelist = [(imgf, rep_img(imgf))
+        #             for imgf in img_files if rep_img(imgf) in seg_files]
+
+        # NOTE: segmentation files changed
+
+        filelist = []
+        for imgf in img_files:
+            seg_subdir = imgf.split("_")[0]
+            if seg_subdir in seg_dirs:
+                segfname = os.listdir(osp.join(seg_dir, seg_subdir))[0]
+                segf = osp.join(seg_subdir, segfname)
+                filelist.append((imgf, segf))
+
         return filelist, (img_dir, seg_dir)
 
     def _get_meta_csv(self):

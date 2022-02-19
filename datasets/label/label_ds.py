@@ -4,7 +4,7 @@ import functools
 
 from tqdm import tqdm
 from configs.config_vars import BASE_DIR
-from typing import Any, List
+from typing import Any, List, Union
 import os
 import numpy as np
 from multiprocessing import Pool, cpu_count
@@ -20,10 +20,12 @@ class Label:
 
     def __init__(self,
                  name: str = 'volume',
+                 dataset_name: Union[str, None] = None,
                  log_dir=os.path.join(BASE_DIR, 'applications/logs/'),
                  **kwds):
         self.name = name
         self.log_dir = log_dir
+        self.dataset_name = dataset_name
         self.save_path = self._get_save_path()
         self._data = {}
         self.timer = Timer((__file__, self.__class__.__name__))
@@ -37,8 +39,15 @@ class Label:
         pass
 
     def _get_save_path(self):
-        save_path = os.path.join(self.log_dir,
-                                 "labels",
+        if self.dataset_name:
+            save_dir = os.path.join(self.log_dir,
+                                    "labels",
+                                    self.dataset_name)
+        else:
+            save_dir = os.path.join(self.log_dir, "labels")
+        if not os.path.exists(save_dir):
+            os.mkdir(save_dir)
+        save_path = os.path.join(save_dir,
                                  f"Y_matched_{self.name}.npy")
         return save_path
 

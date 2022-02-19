@@ -59,5 +59,5 @@ class StanfordRadiogenomicsPatchAugDataset(StanfordRadiogenomicsPatchDataset):
             kwargs['root_dir'] = osp.join(
                 DS_ROOT_DIR, 'StanfordRadiogenomics/patch-32-aug/')
         super(StanfordRadiogenomicsPatchAugDataset,
-              self).__init__(ratio=0.3, *args, **kwargs)
+              self).__init__(*args, **kwargs)
         pass

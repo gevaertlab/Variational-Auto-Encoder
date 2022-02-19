@@ -7,6 +7,7 @@ import yaml
 from utils.funcs import check_dict, edit_dict_value, iterate_nested_dict
 
 from .config_vars import BASE_DIR
+from datasets import PATCH_DATASETS
 
 
 def _get_file_path(filename):
@@ -27,9 +28,15 @@ def parse_config():
                         dest="note",
                         help='any note for training, will be saved in config file',
                         default="")
+    parser.add_argument("--info", "-I",
+                        dest="info",
+                        help="flag to output information but not train",
+                        action="store_true")
     args = parser.parse_args()
     config = process_config(args.filename)
     config['note'] = args.note
+    if args.info:
+        config['info'] = True
     return config
 
 
