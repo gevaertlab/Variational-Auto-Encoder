@@ -10,7 +10,6 @@ import yaml
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 
-from configs.parse_configs import parse_config, process_config
 from datasets import PATCH_DATASETS
 from experiment import VAEXperiment
 from models import VAE_MODELS
@@ -33,15 +32,18 @@ def parse_args():
                         dest="learning_rate",
                         help='float; learning rate to train, typically smaller, 0 means the same',
                         default=0)  # LNDbPatch32Dataset
-
     parser.add_argument('--max_epochs',
                         dest="max_epochs",
                         help='num of epoch to train',
                         default=1000)
-    parser.add_argument('--note',
+    parser.add_argument('--note', "-n",
                         dest="note",
                         help='any note for training, will be saved in config file',
                         default="")
+    parser.add_argument('--name', "-N",
+                        dest="name",
+                        help="new logging name, default to be \'PRETRAINED_VAE\'; if \'same\' then use original config\'s name",
+                        default="PRETRAINED_VAE")
     args = parser.parse_args()
     return args
 
@@ -70,10 +72,13 @@ def freeze_model(model: VAEBackbone, freeze_params: dict):
 
 
 def main():
-    # parse args
+    # parse args and config dict
     args = parse_args()
     config = load_config(args.pretrain_ckpt_load_dir)
     config['note'] = args.note
+    config["logging_params"]['pretrain_ckpt_load_dir'] = args.pretrain_ckpt_load_dir
+    if args.name != "same":
+        config['logging_params']['name'] = args.name
     # change training dataset
     config['exp_params']['dataset'] = args.dataset
     # change LR
@@ -133,8 +138,8 @@ def main():
     print(f"======= Training {config['model_params']['name']} =======")
 
     # freeze some layers
-    # len encoder = 4, len decoder = 3
-    freeze_params = {"encoder": [0, 1], "decoder": [2]}
+    # don't freeze the decoder!
+    freeze_params = {"encoder": [0, 1]}
     experiment.model = freeze_model(
         experiment.model, freeze_params=freeze_params)
 

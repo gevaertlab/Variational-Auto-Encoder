@@ -1,12 +1,12 @@
 model_params:
   name: "VAE3D"
   in_channels: 1
-  latent_dim: 2048
-  hidden_dims: [8, 32, 128, 512]
-  beta: 0.0005
+  latent_dim: 1024
+  hidden_dims: [4, 16, 64, 256]
+  beta: 1.0e-05
 
 exp_params:
-  dataset: LIDCPatchAugDataset
+  dataset: LIDCPatchAugDataset;LNDbPatch32AugDataset;StanfordRadiogenomicsPatchAugDataset
   LR: 0.00002
   batch_size: 36
   # weight_decay: 0.0
@@ -19,6 +19,6 @@ trainer_params:
 
 logging_params:
   save_dir: "logs/"
-  name: "BETA_EXP"
-  visualize_interval: 8 # multiplications of "check_val_every_n_epoch"
+  name: "TRAINING_EXPS"
+  visualize_interval: 4 # multiplications of "check_val_every_n_epoch"
   manual_seed: 9001

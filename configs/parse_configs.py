@@ -8,7 +8,8 @@ from utils.funcs import check_dict, edit_dict_value, iterate_nested_dict
 
 from .config_vars import BASE_DIR
 from datasets import PATCH_DATASETS
-
+from utils.custom_loggers import get_logger 
+LOGGER = get_logger()
 
 def _get_file_path(filename):
     file_path = os.path.join(BASE_DIR, 'configs', filename if filename.endswith(
@@ -64,7 +65,7 @@ def process_config(filename):
                                 config['logging_params']['save_dir'],
                                 config['logging_params']['name'])
     if not os.path.exists(logging_path):
-        print("creating logging directory")
+        LOGGER.info("creating logging directory")
         os.mkdir(logging_path)
     return config
 

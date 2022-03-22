@@ -92,7 +92,7 @@ class StanfordRadiogenomicsDataset(CTDataset):
         return {0: (x, y, z)}
 
     def load_seg_np(self, seg_path):
-        seg_itk = self.load_seg_itk(seg_path)
+        seg_itk = self.load_seg_itk(str(seg_path))
         return sitk.GetArrayFromImage(seg_itk).transpose()
 
     def load_seg_itk(self, seg_path):

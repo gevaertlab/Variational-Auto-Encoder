@@ -9,23 +9,25 @@ from typing import Dict, Union
 import matplotlib
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
-from matplotlib.patches import Patch
 import numpy as np
 import pandas as pd
 import seaborn as sns
 import SimpleITK as sitk
 import torchvision.utils as vutils
+from umap.umap_ import UMAP
+import umap.plot
+from matplotlib.patches import Patch
 # from matplotlib.ticker import MultipleLocator, ScalarFormatter
 from mpl_toolkits import axisartist
 from mpl_toolkits.axes_grid1 import host_subplot
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
-# from sklearn.utils.multiclass import unique_labels
 
 from utils.python_logger import get_logger
 
 from .timer import Timer
+
 
 plt.style.use('ggplot')
 plt.ioff()  # Turn off interactive mode
@@ -318,7 +320,8 @@ def vis_pca(data: np.ndarray,
     """ 
     Similar to vis_tsne, can be referred to when new function added.
     """
-    pca = PCA(n_components=3)
+    dim = 3
+    pca = PCA(n_components=dim)
     pca_result = pca.fit_transform(data)
     LOGGER.info(f"Explained variation per principal component: \
           {pca.explained_variance_ratio_}")
@@ -326,15 +329,16 @@ def vis_pca(data: np.ndarray,
     # case 1, no label
     if label is None:
         pca_result_df = pd.DataFrame(pca_result,
-                                     columns=[f"PC{str(i+1)}" for i in range(3)])
+                                     columns=[f"PC{str(i+1)}" for i in range(dim)])
         sns.scatterplot(x='PC1', y='PC2',
                         data=pca_result_df,
+                        legend="auto",
                         alpha=0.5)
     else:
         label = np.array(label).reshape(-1, 1)
-        pca_np = np.append(pca_result, label, axis=-1)
         pca_result_df = pd.DataFrame(
-            pca_np, columns=[f"PC{str(i+1)}" for i in range(3)]+[label_name])
+            pca_result, columns=[f"PC{str(i+1)}" for i in range(3)])
+        pca_result_df[label_name] = label
         if label_numeric:
             # case 2: numerical label
             cmap = sns.cubehelix_palette(rot=-.2, as_cmap=True)
@@ -345,6 +349,7 @@ def vis_pca(data: np.ndarray,
                 data=pca_result_df,
                 size=label_name,
                 sizes=(1, 20),
+                legend="auto",
                 alpha=0.5)
         else:
             # case 3: categorical label
@@ -353,7 +358,7 @@ def vis_pca(data: np.ndarray,
                 hue=label_name,
                 palette=sns.color_palette("hls", len(np.unique(label))),
                 data=pca_result_df,
-                legend="full",
+                legend="auto",
                 alpha=0.5)
     plt.savefig(save_path, dpi=200)
     plt.close()
@@ -361,14 +366,15 @@ def vis_pca(data: np.ndarray,
     pass
 
 
-def vis_tsne(data: np.ndarray,
+def vis_tsne(data: Union[np.ndarray, pd.DataFrame],
              label: Union[None, np.ndarray, list],
              save_path: str,
              label_name='NA',
              label_numeric=False):
     timer = Timer((osp.basename(__file__), "vis_tsne"))
     timer()
-    tsne = TSNE(n_components=2, verbose=1, perplexity=40, n_iter=300)
+    dim = 3
+    tsne = TSNE(n_components=dim, verbose=1, perplexity=40, n_iter=300)
     tsne_results = tsne.fit_transform(data)
     timer("t-SNE")
     plt.figure(figsize=(5, 5))
@@ -381,9 +387,9 @@ def vis_tsne(data: np.ndarray,
                         alpha=0.5)
     else:
         label = np.array(label).reshape(-1, 1)
-        pca_np = np.append(tsne_results, label, axis=-1)
-        tsne_result_df = pd.DataFrame(
-            pca_np, columns=[f"tSNE{str(i+1)}" for i in range(2)]+[label_name])
+        tsne_result_df = pd.DataFrame(tsne_results,
+                                      columns=[f"tSNE{str(i+1)}" for i in range(dim)])
+        tsne_result_df[label_name] = label
         if label_numeric:
             # case 2: numerical label
             cmap = sns.cubehelix_palette(rot=-.2, as_cmap=True)
@@ -404,6 +410,19 @@ def vis_tsne(data: np.ndarray,
                 data=tsne_result_df,
                 legend="full",
                 alpha=0.5)
+    plt.savefig(save_path, dpi=200)
+    plt.close()
+    LOGGER.info(f"visualized at {save_path}")
+    pass
+
+
+def vis_umap(data: Union[np.ndarray, pd.DataFrame],
+             label: Union[None, np.ndarray, list],
+             save_path: str,
+             label_name='',
+             label_numeric=False):
+    mapper = UMAP().fit(data)
+    umap.plot.points(mapper, labels=np.array(label))
     plt.savefig(save_path, dpi=200)
     plt.close()
     LOGGER.info(f"visualized at {save_path}")

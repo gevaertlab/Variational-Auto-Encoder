@@ -22,7 +22,7 @@ class VAEXperiment(pl.LightningModule):
         super(VAEXperiment, self).__init__()
         # initializing model
         if isinstance(vae_model, dict):  # model is actually param dict
-            vae_model = VAE_MODELS[vae_model['name']](**params)
+            vae_model = VAE_MODELS[vae_model['name']](**vae_model)
             self.model = vae_model
         elif isinstance(vae_model, VAEBackbone):
             self.model = vae_model

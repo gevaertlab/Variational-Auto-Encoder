@@ -81,7 +81,7 @@ def test_recon_images_for_stf_dataset(version):
     pass
 
 
-def test_metrics_for_stf_dataset():
+def test_metrics_for_stf_dataset(version=60, logs="VAE3D32AUG"):
     from datasets import PATCH_DATASETS
     import os.path as osp
     from datasets.utils import sitk2tensor
@@ -100,15 +100,15 @@ def test_metrics_for_stf_dataset():
                          num_workers=4,
                          pin_memory=True)
     me = MetricEvaluator(metrics=["SSIM", "MSE", "PSNR"],
-                         log_name='VAE3D32AUG',
-                         version=60)
+                         log_name=logs,
+                         version=version)
     metrics_dict = me.calc_metrics(dataloader=lndb_dl)
     for k, v in metrics_dict.items():
         print(f"{k}: mean value = {np.mean(v)}")
     pass
 
 
-def test_metrics_calculation_for_lndb_dataset():
+def test_metrics_calculation_for_lndb_dataset(version=60, logs="VAE3D32AUG"):
     from datasets import PATCH_DATASETS
     import numpy as np
     from datasets.utils import sitk2tensor
@@ -124,8 +124,8 @@ def test_metrics_calculation_for_lndb_dataset():
                          num_workers=4,
                          pin_memory=True)
     me = MetricEvaluator(metrics=["SSIM", "MSE", "PSNR"],
-                         log_name='VAE3D32AUG',
-                         version=60)
+                         log_name=logs,
+                         version=version)
     metrics_dict = me.calc_metrics(dataloader=lndb_dl)
     for k, v in metrics_dict.items():
         print(f"{k}: mean value = {np.mean(v)}")
@@ -133,8 +133,8 @@ def test_metrics_calculation_for_lndb_dataset():
 
 
 if __name__ == "__main__":
-    for v in [49, 51, 53, 57, 58, 59, 60]:
-        test_recon_images_for_stf_dataset(version=v)
+    # for v in [49, 51, 53, 57, 58, 59, 60]:
+    # test_metrics_calculation_for_lndb_dataset(version=69)
     # test_metrics_calculation_for_lidc_dataset()
-    # test_metrics_for_stf_dataset()
+    test_metrics_for_stf_dataset(version=69)
     # test_metrics_calculation_for_lndb_dataset()
