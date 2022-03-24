@@ -29,7 +29,7 @@ class BaseEvaluator:
 
     def __init__(self,
                  log_name: str,
-                 version: int,
+                 version: Union[int, str],
                  base_model_name: str = 'VAE3D',
                  ):
         self.log_name = log_name
@@ -94,7 +94,7 @@ class MetricEvaluator(BaseEvaluator):
     def __init__(self,
                  metrics: List,
                  log_name: str,
-                 version: int,
+                 version: Union[int, str],
                  base_model_name: str = 'VAE3D',):
         super().__init__(log_name=log_name,
                          version=version,
@@ -150,17 +150,24 @@ class ReconEvaluator(BaseEvaluator):
                   dataloader='val_dataloader',
                   dl_params={'shuffle': False, 'drop_last': False},
                   num_batches=10):
+        if (not isinstance(dataloader, int)) and ("name" not in dl_params):
+            self.logger.warning(
+                "didn't specify dataset name, default as \'unknown\'")
+            dl_params['name'] = "unknown"
+        elif isinstance(dataloader, int):
+            dl_params['name'] = dataloader
+
         dataloader = self._parse_dataloader(dataloader, dl_params=dl_params)
         for i, (batch, file_names) in enumerate(dataloader):
             output = self.module.model.forward(batch)
             # detach
             batch, recon_batch = batch.detach(), output[0].detach()
-            vis3d_tensor(img_tensor=batch,
+            vis3d_tensor(img_tensor=batch,  # TODO: add names
                          save_path=osp.join(self.vis_dir,
-                                            f"{self.name_prefix}{str(i).zfill(2)}_image.jpeg"))
+                                            f"{self.name_prefix}_{dl_params['name']}_{str(i).zfill(2)}_image.jpeg"))
             vis3d_tensor(img_tensor=recon_batch,
                          save_path=osp.join(self.vis_dir,
-                                            f"{self.name_prefix}{str(i).zfill(2)}_recon.jpeg"))
+                                            f"{self.name_prefix}_{dl_params['name']}_{str(i).zfill(2)}_recon.jpeg"))
             if i >= num_batches:
                 return
         pass
@@ -292,7 +299,15 @@ class SynthesisRange(ReconEvaluator):
                       dl_params={'shuffle': False, 'drop_last': False},
                       num_points=10,
                       feature_idx: Union[int, list] = 0):
-        """ more re-parametrization of a single nodule """
+        """more re-parametrization of a single nodule: setting a value range (-5, 5) * std and tune a set of features (feature_idx)
+        TODO
+        Args:
+            num_batches (int, optional): [description]. Defaults to 1.
+            dataloader (str, optional): [description]. Defaults to 'val_dataloader'.
+            dl_params (dict, optional): [description]. Defaults to {'shuffle': False, 'drop_last': False}.
+            num_points (int, optional): [description]. Defaults to 10.
+            feature_idx (Union[int, list], optional): [can be a list or an int, if NEGATIVE, sample from (5 -> -5)*std. e.g. [-5, -6] -> sample feature num 5 and 6, but from largest to smallest values. Defaults to 0.
+        """
         dataloader = self._parse_dataloader(dataloader, dl_params=dl_params)
         for i, (batch, file_names) in enumerate(dataloader):
             mu, log_var = self.module.model.encode(batch)
@@ -324,19 +339,38 @@ class SynthesisRange(ReconEvaluator):
                       idx: Union[int, list],
                       num_points: int = 10,
                       ):
+        """AI is creating summary for feature_range
+
+        Args:
+            mu (torch.Tensor): [description]
+            logvar (torch.Tensor): [description]
+            idx (Union[int, list]): if negative, sample inversely.
+            num_points (int, optional): [description]. Defaults to 10.
+
+        Returns:
+            [type]: [description]
+        """
+        # idx = list
+        if isinstance(idx, int):
+            idx = [idx]
+        pos_idx = [i for i in idx if i >= 0]
+        neg_idx = [-i for i in idx if i < 0]
         # get latent variable
-        # latent = self.module.model.reparameterize(mu, logvar)
         latent = mu
         # std matrix
-        std = torch.exp(0.5 * logvar[:, idx])
+        posstd = torch.exp(0.5 * logvar[:, pos_idx])
+        negstd = torch.exp(0.5 * logvar[:, neg_idx])
         std_linspace = torch.linspace(start=-5, end=5, steps=num_points)
         # std_matrix = torch.outer(std, std_linspace)
-        std_matrix = (std.unsqueeze(2).repeat(1, 1, num_points)
-                      * std_linspace).permute(0, 2, 1)
+        posstd_matrix = (posstd.unsqueeze(2).repeat(1, 1, num_points)
+                         * std_linspace).permute(0, 2, 1)
+        negstd_matrix = (negstd.unsqueeze(2).repeat(1, 1, num_points)
+                         * -std_linspace).permute(0, 2, 1)  # negative of std_linspace
 
         # add std
         latent = latent.unsqueeze(1).repeat(1, num_points, 1)
-        latent[:, :, idx] = latent[:, :, idx] + std_matrix
+        latent[:, :, pos_idx] = latent[:, :, pos_idx] + posstd_matrix
+        latent[:, :, neg_idx] = latent[:, :, neg_idx] + negstd_matrix
         return latent
 
     def generate(self, latent_vector: torch.Tensor):

@@ -27,3 +27,13 @@ class LNDbPatch32Dataset(LNDbPatchDataset):
             kwargs['root_dir'] = osp.join(DS_ROOT_DIR, 'LNDb/LNDb-patch32/')
         super(LNDbPatch32Dataset, self).__init__(*args, **kwargs)
         pass
+
+
+class LNDbPatch32AugDataset(LNDbPatchDataset):
+
+    def __init__(self, *args, **kwargs):  # -> None
+        if (not kwargs) or ('root_dir' not in kwargs) or (kwargs['root_dir'] is None):
+            kwargs['root_dir'] = osp.join(
+                DS_ROOT_DIR, 'LNDb/LNDb-patch32-aug/')
+        super(LNDbPatch32AugDataset, self).__init__(*args, **kwargs)
+        pass

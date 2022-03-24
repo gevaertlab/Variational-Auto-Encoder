@@ -19,6 +19,7 @@ from torch.utils.data.dataset import Dataset
 from tqdm import tqdm
 from utils.funcs import mkdir_safe
 from utils.io import load_dcm, load_nrrd, save_as_nrrd
+from utils.python_logger import get_logger
 from utils.visualization import vis_sitk
 
 from .augmentation import Augmentation, calc_crop_size
@@ -43,6 +44,7 @@ class PatchExtract:
             self.augmentation = Augmentation(augmentation_params)
         else:
             self.augmentation = None
+        self.logger = get_logger(cls_name=self.__class__.__name__)
         pass
 
     def extract_img(self,
@@ -96,40 +98,25 @@ class PatchExtract:
                      save_dir: str,
                      overwrite=False,):
         meta = self.dataset.get_info(item)[1]
-        img_path = meta['path']
+        if isinstance(meta['path'], str):
+            img_path = meta['path']
+        elif isinstance(meta['path'], dict):
+            # for datasets with segmentations
+            img_path = meta['path']['img_path']
+        else:
+            raise NotImplementedError
         centroid_dict = meta['centroid_dict']
         for k, v in centroid_dict.items():
             file_name = f"{meta['pid']}.{str(k)}.nrrd"
             img = self.dataset.load_funcs['ct'](img_path)
             save_path = osp.join(save_dir, file_name)
             if not overwrite and os.path.exists(save_path):
-                self.logger.info("{save_path} already exists")
+                self.logger.info(f"{save_path} already exists")
                 continue
             self.extract_img(img=img,
                              center_point=v,
                              save_path=save_path)
         pass
-
-    # def load_extract(self,
-    #                  img_path,
-    #                  load_func,
-    #                  center_point,
-    #                  file_name,
-    #                  save_dir):
-    #     # calls load image and extract image
-    #     img = self.dataset[img_path]
-    #     # img = self.load_img(img_path=img_path,
-    #     #                     load_func=load_func)
-    #     self.extract_img(img,
-    #                      center_point,
-    #                      osp.join(save_dir, file_name))
-    #     pass
-
-    # def load_img(self, img_path=None, load_func=None):
-    #     if not load_func:
-    #         return load_dcm(img_path)
-    #     else:
-    #         return load_func(img_path)
 
     def load_extract_ds(self,
                         save_dir,
@@ -142,28 +129,13 @@ class PatchExtract:
         # transform format to load extract
 
         # called load_extract for the whole dataset
-        load_func = self.dataset.load_funcs['ct']
         if not multi:
-            
-            # for file_name, (img_path, center_point) in tqdm(self.dataset.get_info('data_dict').items()):
-            #     self.load_extract(img_path=img_path,
-            #                       load_func=load_func,
-            #                       center_point=tuple(center_point),
-            #                       file_name=file_name+'.nrrd',  # add ext
-            #                       save_dir=save_dir)
-            
             for i in tqdm(range(len(self.dataset))):
-                self.load_extract(item=i, save_dir=save_dir, overwrite=overwrite)
-        else:
-            data_tuple = [
-                (img_path,
-                 load_func,
-                 tuple(center_point),
-                 file_name+'.nrrd',
-                 save_dir) for
-                file_name, (img_path, center_point)  # have to redo this
-                in self.ds_params['data_dict'].items()
-            ]
+                self.load_extract(item=i, save_dir=save_dir,
+                                  overwrite=overwrite)
+        else:  # NOTE: NOT IMPLEMENTED
+            data_tuple = [(i, save_dir, overwrite)
+                          for i in range(len(self.dataset))]
             with Pool(cpu_count()) as p:
                 p.starmap(self.load_extract,
                           tqdm(data_tuple,

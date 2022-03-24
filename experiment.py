@@ -1,29 +1,44 @@
 ''' Defines a torch_lightning Module '''
 import os
+from typing import GenericMeta, Union
 
 import pytorch_lightning as pl
 from torch import optim
 from torch.utils.data import DataLoader
 
 from datasets import PATCH_DATASETS
+from datasets.concat_ds import get_concat_dataset
 from datasets.utils import sitk2tensor
+from models import VAE_MODELS
 from models._type import Tensor
 from models.vae_base import VAEBackbone
 from utils.visualization import vis3d_tensor
+from utils import get_logger
 
 
 class VAEXperiment(pl.LightningModule):
 
-    def __init__(self, vae_model: VAEBackbone, params: dict):  # -> None
+    def __init__(self, vae_model: Union[dict, VAEBackbone], params: dict):  # -> None
         super(VAEXperiment, self).__init__()
+        # initializing model
+        if isinstance(vae_model, dict):  # model is actually param dict
+            vae_model = VAE_MODELS[vae_model['name']](**vae_model)
+            self.model = vae_model
+        elif isinstance(vae_model, VAEBackbone):
+            self.model = vae_model
 
-        self.model = vae_model
         self.params = params
         self.curr_device = None
         self.hold_graph = False
-        self.dataloader_params = {'num_workers': 4,
+        self.dataloader_params = {'num_workers': 12,
                                   'pin_memory': True}
-        self.dataset = PATCH_DATASETS[params['dataset']]
+        if ";" in params['dataset']:
+            ds_name_list = params['dataset'].split(";")
+            self.dataset = get_concat_dataset(ds_name_list)
+        else:
+            self.dataset = PATCH_DATASETS[params['dataset']]
+        self.save_hyperparameters()  # for loading later
+        self.LOGGER = get_logger(cls_name=self.__class__.__name__)
         pass
 
     def forward(self, input: Tensor, **kwargs):  # -> Tensor
@@ -78,10 +93,10 @@ class VAEXperiment(pl.LightningModule):
 
         # visualization using our codes
         vis3d_tensor(recons.data, save_path=os.path.join(f"{self.logger.save_dir}{self.logger.name}/version_{self.logger.version}/media",
-                                                        f"recons_{self.logger.name}_{self.current_epoch}.png"))
+                                                         f"recons_{self.logger.name}_{self.current_epoch}.png"))
 
         vis3d_tensor(test_input.data, save_path=os.path.join(f"{self.logger.save_dir}{self.logger.name}/version_{self.logger.version}/media",
-                                                            f"real_img_{self.logger.name}_{self.current_epoch}.png"))
+                                                             f"real_img_{self.logger.name}_{self.current_epoch}.png"))
         del test_input, recons  # , samples
 
         # draw loss curves
@@ -102,7 +117,8 @@ class VAEXperiment(pl.LightningModule):
         self.train_dataloader()
         # lr scheduler
         if self.params['max_lr'] is not None:
-            step_per_epoch = self.num_train_imgs // self.params['batch_size'] // 2
+            # debug: // 2
+            step_per_epoch = self.num_train_imgs // self.params['batch_size']
             scheduler = optim.lr_scheduler.OneCycleLR(optims[0],
                                                       epochs=self.params['max_epochs'],
                                                       steps_per_epoch=step_per_epoch,
@@ -111,31 +127,42 @@ class VAEXperiment(pl.LightningModule):
             lr_dict = {'scheduler': scheduler,
                        'interval': 'step'}  # one cycle lr in each epoch
             scheds.append(lr_dict)
+            self.optims = optims
+            self.scheds = scheds
             return optims, scheds
         else:
+            self.optims = optims
             return optims
 
-    def train_dataloader(self, shuffle=True, drop_last=True):  # -> DataLoader
-        train_ds = self.dataset(root_dir=None,
-                                transform=sitk2tensor,
-                                split='train')
+    def train_dataloader(self, root_dir=None, shuffle=True, drop_last=True):  # -> DataLoader
+        # if self.dataset is already a dataset then proceed
+        if isinstance(self.dataset, GenericMeta):
+            train_ds = self.dataset(root_dir=root_dir,
+                                    transform=sitk2tensor,
+                                    split='train')
         self.num_train_imgs = len(train_ds)
         return DataLoader(dataset=train_ds,
                           batch_size=self.params['batch_size'],
                           shuffle=shuffle,
                           drop_last=drop_last,
-                          num_workers=4,
-                          pin_memory=True)
+                          **self.dataloader_params)
 
-    def val_dataloader(self, shuffle=False, drop_last=True):
-        val_ds = self.dataset(root_dir=None,
-                              transform=sitk2tensor,
-                              split='val')
+    def val_dataloader(self, root_dir=None, shuffle=False, drop_last=True):
+        if isinstance(self.dataset, GenericMeta):
+            val_ds = self.dataset(root_dir=root_dir,
+                                  transform=sitk2tensor,
+                                  split='val')
         self.num_val_imgs = len(val_ds)
         self.sample_dataloader = DataLoader(val_ds,
                                             batch_size=self.params['batch_size'],
                                             shuffle=shuffle,
                                             drop_last=drop_last,
-                                            num_workers=4,
-                                            pin_memory=True)
+                                            **self.dataloader_params)
         return [self.sample_dataloader]
+
+    def verbose_info(self):
+        self.LOGGER.info(
+            f"Implemented vae models: {VAE_MODELS.keys()}")
+        self.LOGGER.info(
+            f"Implemented patch datasets: {PATCH_DATASETS.keys()}")
+        pass

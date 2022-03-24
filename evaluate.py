@@ -35,9 +35,10 @@ if __name__ == '__main__':
 
     for task_name in task_names[1:]:
         app = Application(args.log_name, args.version, task_name=task_name)
-        # if 'both' in args.command or 'task_predict' in args.command:
-            # app.task_prediction(tune_hparams=False, models=args.models)
+        if 'both' in args.command or 'task_predict' in args.command:
+            app.task_prediction(tune_hparams=False, models=args.models)
             # app.save_results()
-            # app.draw_dignosis_figure()
-        app.visualize()
+            app.draw_dignosis_figure()
+        if "both" in args.command or "visualize" in args.command:
+            app.visualize()
     pass

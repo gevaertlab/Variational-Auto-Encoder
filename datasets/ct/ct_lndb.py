@@ -51,7 +51,7 @@ class LNDbDataset(CTDataset):
         """
         if not self._split:
             self.logger.info("split not set, default to be \"all\".")
-        self.set_split('all')
+            self.set_split('all')
         filelist = self._get_files()
         meta_csv = self._get_meta_csv()
         # pid = LNDbID
@@ -151,8 +151,6 @@ class LNDbDataset(CTDataset):
 
     def load_ct_np(self, idx, query_type='index'):
         """ integer for index, string for file_path or patient_id """
-        if osp.isdir(idx) or osp.isfile(idx):
-            self.load_funcs['ct'](idx)
         return super().load_ct_np(idx)
 
     def load_centroid(self, idx, meta_csv=None, query_type='index'):

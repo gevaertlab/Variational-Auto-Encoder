@@ -7,6 +7,7 @@ logs/
 patch_extraction/registration/
 archive/
 exported/
+vis_*/
 
 ### Linux ###
 *~

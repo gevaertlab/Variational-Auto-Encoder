@@ -15,20 +15,20 @@ def param_parser():
     parser.add_argument('--dataset',  '-r',
                         dest="dataset",
                         help='name of the dataset, defined in CT_DATASETS',
-                        default='LNDbDataset')
+                        default='LDNbDataset')
     parser.add_argument('--aug_param',  '-a',
                         dest="aug_param",
                         help='augmentation parameters (filename) for '
                         'aumgentation, should be in aug_param folder',
-                        default='')
+                        default='version1')  # in `aug_params`` rotate, shift or version1
     parser.add_argument('--save_dir',  '-S',
                         dest="save_dir",
                         help="save directory of converted patches",
-                        default='LNDb/LNDb-patch-32')  # NOTE: debug
+                        default='LNDb/LNDb-patch32-aug')
     parser.add_argument('--vis_dir',  '-V',
                         dest="vis_dir",
                         help="visualization directory of converted patches",
-                        default='LNDb/LNDb-patch-visualization-32')  # NOTE: debug
+                        default='')  # NOTE: debug e.g. StanfordRadiogenomics/patch-visualization-32-aug
     parser.add_argument('--size',  '-s',
                         dest="size",
                         help="size of the patches",
@@ -37,15 +37,10 @@ def param_parser():
                         dest="multi",
                         action='store_true',
                         help="whether to use multiprocessing")
-    parser.add_argument('--debug',
-                        dest="debug",
-                        action='store_true',
-                        help="debug flag for preprocessing, "
-                             "will output examples of extracted patches for debugging")
-    parser.add_argument('--debug_dir',
-                        dest="save_dir",
-                        help="save directory of converted patches",
-                        default='/labs/gevaertlab/users/yyhhli/code/debug')  # NOTE: actualdirectory
+    parser.add_argument('--overwrite',
+                        dest="overwrite",
+                        help="whether to overwrite previously processed set",
+                        action='store_true',)
     args = parser.parse_args()
     args.size = tuple([int(args.size)] * 3)
     if not args.save_dir.startswith('/'):
@@ -65,10 +60,11 @@ if __name__ == "__main__":
     patch_extract = PatchExtract(patch_size=args.size,
                                  dataset=ds,
                                  augmentation_params=aug_param,
-                                 debug=args.debug)
+                                 debug=bool(args.vis_dir))
     patch_extract.load_extract_ds(save_dir=args.save_dir,
-                                  multi=args.multi)
+                                  multi=args.multi,
+                                  overwrite=args.overwrite)
     # visualization
-    if args.debug:
+    if args.vis_dir:
         patch_extract.vis_ds(dataset_dir=args.save_dir,
                              vis_dir=args.vis_dir)

@@ -4,6 +4,7 @@
 import os
 import os.path as osp
 from typing import Dict
+import numpy as np
 
 import pandas as pd
 from configs.config_vars import BASE_DIR
@@ -17,8 +18,8 @@ from utils.visualization import (confusion_matrix_models, vis_clustermap,
 
 from applications.associations import get_stats_results
 
-from .__init__ import TASK_DICT
-from .models import predictTask
+from .__init__ import get_task
+from .models import predict_task
 
 
 class Application:
@@ -36,10 +37,21 @@ class Application:
                  log_name: str,
                  version: int,
                  task_name: str,
+                 task_kwds: dict = {},
                  base_model_name: str = 'VAE3D',
-                 dataloader: Dict = {'train': 'train_dataloader',
-                                     'val': 'val_dataloader'}
+                 dataloaders: Dict = {'train': 'train_dataloader',
+                                      'val': 'val_dataloader'}
                  ):
+        """TODO
+
+        Args:
+            log_name (str): [description]
+            version (int): [description]
+            task_name (str): [description]
+            task_kwds (dict, optional): [description]. Defaults to {}.
+            base_model_name (str, optional): [description]. Defaults to 'VAE3D'.
+            dataloaders (Dict, optional): [description]. Defaults to {'train': 'train_dataloader', 'val': 'val_dataloader'}.
+        """
         self.timer = Timer(
             name=(osp.basename(__file__), self.__class__.__name__))
         self.timer()
@@ -49,7 +61,7 @@ class Application:
         self.base_model_name = base_model_name
         self.log_name = log_name
         self.version = version
-        self.dataloader = dataloader
+        self.dataloaders = dataloaders
 
         # get load and save dir
         self.load_dir = os.path.join(self.LOG_DIR,
@@ -67,11 +79,11 @@ class Application:
         self.exporter = Exporter(base_model_name=base_model_name,
                                  log_name=log_name,
                                  version=version,
-                                 dataloader=self.dataloader)
+                                 dataloaders=self.dataloaders)
         self.embeddings, self.data_names = self.exporter.get_embeddings()
         self.labels = self.exporter.get_labels(
-            task_name, data_names=self.data_names)
-        self.task = TASK_DICT[task_name]()
+            task_name, label_kwds=task_kwds, data_names=self.data_names)
+        self.task = get_task(task_name)(**task_kwds)
 
         # init: results
         self._init_results()
@@ -110,7 +122,7 @@ class Application:
         X, Y = self.task.transform(self.embeddings, self.labels)
         return X, Y
 
-    def task_prediction(self, tune_hparams=True, models='all'):
+    def task_prediction(self, tune_hparams=True, models='all', bootstrapping=False):
         """
         Predict a task
         Args:
@@ -128,14 +140,31 @@ class Application:
                    self.pred_dict,
                    self.pred_stats,
                    self.hparam_dict)
-        results = predictTask(task=self.task,
-                              X=self.embeddings, Y=self.labels,
-                              models=models,
-                              results=results,
-                              tune_hparams=tune_hparams,
-                              hparam_dict=self.hparam_dict)
-        result_dict, pred_dict, pred_stats, hparam_dict = results
-        return result_dict, pred_dict, pred_stats, hparam_dict
+        results = predict_task(task=self.task,
+                               X=self.embeddings, Y=self.labels,
+                               models=models,
+                               results=results,
+                               tune_hparams=tune_hparams,
+                               bootstrapping=bootstrapping,
+                               hparam_dict=self.hparam_dict)
+        if bootstrapping:
+            boot_result_dict = JsonDict(save_path=osp.join(self.APP_DIR,
+                                                           self.save_dir,
+                                                           '.'.join([self.task_name,
+                                                                     'result_dict_bootstrapping',
+                                                                     'json'])))
+            result_dict, best_params = results
+            for k in result_dict.keys():
+                boot_result_dict[k] = result_dict[k]
+                self.hparam_dict[k] = best_params[k]
+            boot_result_dict.save()
+            self.hparam_dict.save()
+            return boot_result_dict, self.hparam_dict
+        else:
+            for item in results:
+                item.save()
+            result_dict, pred_dict, pred_stats, hparam_dict = results
+            return result_dict, pred_dict, pred_stats, hparam_dict
 
     def association_analysis(self):
         """
@@ -152,7 +181,7 @@ class Application:
             f"using {asso_func.__name__} association and {correction_func.__name__} correction ...")
         X, Y = self.preprocess_data()
         self.logger.info(
-            f"data dimentionalities: X={X['train'].shape}, Y={Y['train'].shape}")
+            f"data dimentionalities: X={X['train'].shape}, Y={np.array(Y['train']).shape}")
         stats_df = get_stats_results(X['train'], Y['train'], asso_func)
         # correction
         fdr_df = pd.DataFrame(correction_func(
@@ -324,46 +353,56 @@ class Application:
             self.logger.info(f"Saved figure to {diagnosis_figure_file}")
         pass
 
-    def visualize(self):
+    def visualize(self,
+                  figures=["clustermap", "heatmap", "pca", "tsne", "umap"]):
         """ visualizing with PCA and t-SNE and heatmap for embeddings with label """
-        X, Y = self.preprocess_data()
+        self.vis_funcs = {"clustermap": vis_clustermap,
+                          "heatmap": vis_heatmap,
+                          "pca": vis_pca,
+                          "tsne": vis_tsne,
+                          "umap": None}  # NOTE: not yet used
         save_dir = os.path.join(self.APP_DIR,
                                 "visualizations")
+        X, Y = self.preprocess_data()
         if self.task.task_type == 'regression':
             kwarg = {'label_numeric': True}
         else:
             kwarg = {}
 
         # train
-        # vis_clustermap({'features': X['train'], 'nodule': Y['train']},
-        #                xlabel='features', ylabel='nodule', task_name=self.task_name,
-        #                save_path=osp.join(save_dir,
-        #                                   f"{self.version}_{self.task_name}_clustermap_train.jpeg"))
-        # vis_heatmap(X['train'], save_path=os.path.join(
-        #             save_dir, f"{self.version}_heatmap_train.jpeg"),
-        #             xlabel='features', ylabel='nodule')
-        vis_pca(data=X['train'], label=Y['train'],
-                save_path=os.path.join(
-                    save_dir, f"{self.version}_{self.task_name}_pca_train.jpeg"),
-                label_name=self.task_name, **kwarg)
-        vis_tsne(data=X['train'], label=Y['train'],
-                 save_path=os.path.join(
-                     save_dir, f"{self.version}_{self.task_name}_tsne_train.jpeg"),
-                 label_name=self.task_name, **kwarg)
-
-        # val
-        # vis_clustermap({'features': X['train'], 'nodule': Y['train']},
-        #                xlabel='features', ylabel='nodule', task_name=self.task_name,
-        #                save_path=osp.join(save_dir,
-        #                                   f"{self.version}_{self.task_name}_clustermap_test.jpeg"))
-        # vis_heatmap(X['val'], save_path=os.path.join(
-        #             save_dir, f"{self.version}_heatmap_val.jpeg"))
-        vis_pca(data=X['val'], label=Y['val'],
-                save_path=os.path.join(
+        if "clustermap" in figures:
+            vis_clustermap({'features': X['train'], 'nodule': Y['train']},
+                           xlabel='features', ylabel='nodule', task_name=self.task_name,
+                           save_path=osp.join(save_dir,
+                                              f"{self.version}_{self.task_name}_clustermap_train.jpeg"))
+            vis_clustermap({'features': X['train'], 'nodule': Y['train']},
+                           xlabel='features', ylabel='nodule', task_name=self.task_name,
+                           save_path=osp.join(save_dir,
+                                              f"{self.version}_{self.task_name}_clustermap_test.jpeg"))
+        if "heatmap" in figures:
+            vis_heatmap(X['train'], save_path=os.path.join(
+                        save_dir, f"{self.version}_heatmap_train.jpeg"),
+                        xlabel='features', ylabel='nodule')
+            vis_heatmap(X['val'], save_path=os.path.join(
+                save_dir, f"{self.version}_heatmap_val.jpeg"),
+                xlabel='features', ylabel='nodule')
+        if "pca" in figures:
+            vis_pca(data=X['train'], label=Y['train'],
+                    save_path=os.path.join(
+                        save_dir, f"{self.version}_{self.task_name}_pca_train.jpeg"),
+                    label_name=self.task_name, **kwarg)
+            vis_pca(data=X['val'], label=Y['val'],
+                    save_path=os.path.join(
                     save_dir, f"{self.version}_{self.task_name}_pca_val.jpeg"),
+                    label_name=self.task_name, **kwarg)
+        if "tsne" in figures:
+            vis_tsne(data=X['train'], label=Y['train'],
+                     save_path=os.path.join(
+                save_dir, f"{self.version}_{self.task_name}_tsne_train.jpeg"),
                 label_name=self.task_name, **kwarg)
-        vis_tsne(data=X['val'], label=Y['val'],
-                 save_path=os.path.join(
+            vis_tsne(data=X['val'], label=Y['val'],
+                     save_path=os.path.join(
                      save_dir, f"{self.version}_{self.task_name}_tsne_val.jpeg"),
-                 label_name=self.task_name, **kwarg)
+                     label_name=self.task_name, **kwarg)
+
         pass

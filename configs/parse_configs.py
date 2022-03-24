@@ -7,10 +7,13 @@ import yaml
 from utils.funcs import check_dict, edit_dict_value, iterate_nested_dict
 
 from .config_vars import BASE_DIR
-
+from datasets import PATCH_DATASETS
+from utils.custom_loggers import get_logger 
+LOGGER = get_logger()
 
 def _get_file_path(filename):
-    file_path = os.path.join(BASE_DIR, 'configs', filename + '.yaml')
+    file_path = os.path.join(BASE_DIR, 'configs', filename if filename.endswith(
+        ".yaml") else filename + '.yaml')
     return file_path
 
 
@@ -22,10 +25,19 @@ def parse_config():
                         metavar='FILE',
                         help='config file name in /configs folder',
                         default='exp_new/vae32aug_exp')
-
+    parser.add_argument('--note', "-N",
+                        dest="note",
+                        help='any note for training, will be saved in config file',
+                        default="")
+    parser.add_argument("--info", "-I",
+                        dest="info",
+                        help="flag to output information but not train",
+                        action="store_true")
     args = parser.parse_args()
     config = process_config(args.filename)
-
+    config['note'] = args.note
+    if args.info:
+        config['info'] = True
     return config
 
 
@@ -53,7 +65,7 @@ def process_config(filename):
                                 config['logging_params']['save_dir'],
                                 config['logging_params']['name'])
     if not os.path.exists(logging_path):
-        print("creating logging directory")
+        LOGGER.info("creating logging directory")
         os.mkdir(logging_path)
     return config
 

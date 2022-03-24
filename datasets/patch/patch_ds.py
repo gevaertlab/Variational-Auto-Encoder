@@ -1,6 +1,5 @@
 """ patch dataset base """
 import os
-from SimpleITK.SimpleITK import Not
 from abc import ABCMeta, abstractmethod
 import numpy as np
 import SimpleITK as sitk
@@ -125,7 +124,7 @@ class PatchDataset(Dataset):
         return list(np.array(lst)[sorted_idx])
 
 
-class PatchDynamicDataset(Dataset):  # TODO: rethink the usage
+class PatchDynamicDataset(Dataset):  # TODO: implement this
 
     def __init__(self,
                  ct_dataset: CTDataset,

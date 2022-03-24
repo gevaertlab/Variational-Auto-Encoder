@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import torch.backends.cudnn as cudnn
 from pytorch_lightning import Trainer
-from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 
 from configs.parse_configs import parse_config, process_config
 from experiment import VAEXperiment
@@ -31,36 +31,43 @@ def main(config_name=None):
     cudnn.deterministic = True
     cudnn.benchmark = False
 
-    # model
-    model = VAE_MODELS[config['model_params']
-                       ['name']](**config['model_params'])
-
     # callback
-    callback = ModelCheckpoint(monitor='val_loss',  # if not specified, default save dir
-                               save_top_k=1,
-                               mode='min')
+    model_checkpoint = ModelCheckpoint(monitor='val_loss',  # if not specified, default save dir
+                                       save_top_k=1,
+                                       mode='min')
+
+    early_stopping = EarlyStopping(monitor="val_loss",
+                                   min_delta=0.0,
+                                   patience=2,
+                                   verbose=True,
+                                   mode="min")
 
     # trainer
     runner = Trainer(default_root_dir=f"{vae_logger.save_dir}",
                      logger=vae_logger,
-                     callbacks=callback,  # specify callback
+                     # specify callback
+                     callbacks=[model_checkpoint, early_stopping],
                      flush_logs_every_n_steps=10,
-                     num_sanity_val_steps=5,
+                     num_sanity_val_steps=100,
                      distributed_backend='ddp',
-                     gpus=2,
+                     auto_select_gpus=True,
+                     gpus=1,  # NOTE: training stucked, see https://github.com/PyTorchLightning/pytorch-lightning/issues/5865
                      **config['trainer_params'])
 
     # experiment
     # import some of the training params
     config['exp_params']['max_epochs'] = config['trainer_params']['max_epochs']
-    experiment = VAEXperiment(model, config['exp_params'])
+    experiment = VAEXperiment(config['model_params'], config['exp_params'])
 
-    print(f"======= Training {config['model_params']['name']} =======")
+    if "info" in config:
+        experiment.verbose_info()
+        pass
+    else:
+        print(f"======= Training {config['model_params']['name']} =======")
 
-    # train
-    runner.fit(experiment)
-
-    pass
+        # train
+        runner.fit(experiment)
+        pass
 
 
 if __name__ == '__main__':

@@ -4,13 +4,20 @@ import os
 import yaml
 from tabulate import tabulate
 
+def str2int(v):
+    try:
+        result = int(v)
+    except ValueError as e:
+        result = 0
+    return result
+
 def getVersion(path):
     ''' Get current version by increment the previous version '''
     folder_lst = os.listdir(path)
     if not folder_lst:
         return 1
     else:
-        return max([int(folder.split('_')[1]) for folder in folder_lst]) + 1
+        return max([str2int(folder.split('_')[1]) for folder in folder_lst]) + 1
 
 
 def saveConfig(path, config_file):

@@ -109,5 +109,14 @@ def test_lidc_split():
     len(lndb_patch)
     pass
 
+
+def test_stanfordradiogenomics_dataset():
+    sys.path.insert(1, os.getcwd())
+    from datasets.ct.ct_stanfordradiogenomics import StanfordRadiogenomicsDataset
+    stanfordradiogenomics = StanfordRadiogenomicsDataset()
+    data = stanfordradiogenomics[1]
+    pass
+
+
 if __name__ == '__main__':
-    test_lidc_split()
+    test_stanfordradiogenomics_dataset()

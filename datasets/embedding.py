@@ -27,6 +27,13 @@ class Embedding:
                  version: int,
                  tag: str = '',
                  split=None):
+        """
+        Args:
+            log_name (str): the name of the model trained
+            version (int): version of the model
+            tag (str, optional): The name of the dataset that the embedding predicts on. Defaults to ''.
+            split ([type], optional): training ("train") or validation ("val"). Defaults to None.
+        """
         self.log_name = log_name
         self.version = version
         self.split = split
@@ -133,17 +140,20 @@ class EmbeddingPredictor(BaseEvaluator):
 
     def predict_embedding(self,
                           dataloader,
+                          embedding=None,
+                          tag="",
                           dl_params={'shuffle': False, 'drop_last': False},
                           split=None):
         """ 
         predict embedding with specified dataloader (dl) name and params 
         dl_params: e.g. {'shuffle':False, 'drop_last':False}
         """
-        embedding = Embedding(log_name=self.log_name,
-                              version=self.version,
-                              tag="" if not isinstance(
-                                  dataloader, DataLoader) else dataloader.dataset.__class__.__name__,
-                              split=split)
+        if not embedding:
+            
+            embedding = Embedding(log_name=self.log_name,
+                                version=self.version,
+                                tag=tag,
+                                split=split)
         dataloader = self._parse_dataloader(dataloader, dl_params=dl_params)
         self.logger.info(f"Predicting embeddings for {len(dataloader)} images")
         for batch, file_names in tqdm(dataloader):

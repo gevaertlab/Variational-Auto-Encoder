@@ -298,7 +298,10 @@ class CTDataset(Dataset):
         if osp.isdir(idx) or osp.isfile(idx):
             ct_path = idx
         else:
-            ct_path = self.get_info(idx, query_type=query_type)['path']
+            ct_path = self.get_info(idx, query_type=query_type)[1]['path']
+            if isinstance(ct_path, dict):
+                ct_path = ct_path['img_path']
+             # TODO: test other datasets
         img = self.load_funcs['ct'](ct_path)
         return sitk.GetArrayFromImage(img)
 
@@ -306,7 +309,7 @@ class CTDataset(Dataset):
         if osp.isdir(idx) or osp.isfile(idx):
             seg_path = idx
         else:
-            seg_path = self.get_info(idx, query_type=query_type)['seg_path']
+            seg_path = self.get_info(idx, query_type=query_type)[1]['path']['seg_path']
         return self.load_funcs['seg'](seg_path)
 
     def __getitem__(self, idx, query_type='index'):
