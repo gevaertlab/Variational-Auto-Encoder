@@ -8,8 +8,11 @@ from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 
 from configs.parse_configs import parse_config, process_config
 from experiment import VAEXperiment
-from models import VAE_MODELS
 from utils.custom_loggers import VAELogger  # logger
+from torch.nn.parallel import DistributedDataParallel as DDP
+import torch.distributed as dist
+from pytorch_lightning.strategies import DDPStrategy
+from pytorch_lightning.plugins import DDPPlugin
 
 
 def main(config_name=None):
@@ -42,22 +45,33 @@ def main(config_name=None):
                                    verbose=True,
                                    mode="min")
 
-    # trainer
-    runner = Trainer(default_root_dir=f"{vae_logger.save_dir}",
-                     logger=vae_logger,
-                     # specify callback
-                     callbacks=[model_checkpoint, early_stopping],
-                     flush_logs_every_n_steps=10,
-                     num_sanity_val_steps=100,
-                     distributed_backend='ddp',
-                     auto_select_gpus=True,
-                     gpus=1,  # NOTE: training stucked, see https://github.com/PyTorchLightning/pytorch-lightning/issues/5865
-                     **config['trainer_params'])
+    print("early_stopping:", config['exp_params']['early_stopping'])  # debug
+
+    callbacks = [model_checkpoint] if not config['exp_params']['early_stopping'] else [
+        model_checkpoint, early_stopping]
 
     # experiment
     # import some of the training params
     config['exp_params']['max_epochs'] = config['trainer_params']['max_epochs']
     experiment = VAEXperiment(config['model_params'], config['exp_params'])
+
+    # trainer
+    # NOTE: training stucked, see https://github.com/PyTorchLightning/pytorch-lightning/issues/5865
+    # see https://stackoverflow.com/questions/68000761/pytorch-ddp-finding-the-cause-of-expected-to-mark-a-variable-ready-only-once
+    # dist.init_process_group("gloo", rank=rank, world_size=world_size)
+    # ddp = DDP(module=experiment, find_unused_parameters=False)
+    runner = Trainer(default_root_dir=f"{vae_logger.save_dir}",
+                     logger=vae_logger,
+                     # specify callback
+                     callbacks=callbacks,
+                     num_sanity_val_steps=100,
+                     #  strategy=DDPStrategy(),
+                     strategy=DDPPlugin(find_unused_parameters=False),
+                     auto_select_gpus=True,
+                     auto_scale_batch_size=True,
+                     #  accelerator="ddp",
+                     gpus=[2, 3],
+                     **config['trainer_params'])
 
     if "info" in config:
         experiment.verbose_info()
@@ -71,5 +85,5 @@ def main(config_name=None):
 
 
 if __name__ == '__main__':
-    main()
+    main("perceptual_test/test1")
     pass

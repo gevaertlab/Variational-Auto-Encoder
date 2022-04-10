@@ -8,6 +8,7 @@ patch_extraction/registration/
 archive/
 exported/
 vis_*/
+**/pretrained_models
 
 ### Linux ###
 *~

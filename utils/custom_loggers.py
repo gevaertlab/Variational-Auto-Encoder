@@ -4,7 +4,7 @@ import os
 from typing import Optional
 
 import pandas as pd
-from pytorch_lightning.loggers import CSVLogger, TestTubeLogger
+from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger
 from pytorch_lightning.utilities import _module_available
 
 from .funcs import getVersion, saveConfig
@@ -21,37 +21,69 @@ else:
     Experiment = None
 
 
-class VAELogger(TestTubeLogger):
+class VAELogger(CSVLogger):
 
     def __init__(self,
                  save_dir: str,
                  name: str,
-                 description: Optional[str] = '',
-                 debug: bool = False,
+                 #  description: Optional[str] = '',
+                 #  debug: bool = False,
                  version: Optional[int] = None,
-                 create_git_tag: bool = False,
+                 #  create_git_tag: bool = False,
                  log_graph: bool = False,
                  prefix: str = '',
                  vis_interval=10,
                  config_file=None):
-        super().__init__(save_dir,
+        super().__init__(save_dir=save_dir,
                          name=name,
-                         description=description,
-                         debug=debug,
                          version=version,
-                         create_git_tag=create_git_tag,
-                         log_graph=log_graph,
+                         flush_logs_every_n_steps=vis_interval,
                          prefix=prefix)
+        # combining tensorboard and csv logger
+        self.tb_logger = TensorBoardLogger(save_dir,
+                                           name=name,
+                                           #  description=description,
+                                           #  debug=debug,
+                                           version=version,
+                                           #  create_git_tag=create_git_tag,
+                                           default_hp_metric=False,
+                                           sub_dir="tb_log",
+                                           log_graph=log_graph,
+                                           prefix=prefix)
 
         self.vis_interval = vis_interval
         self.config_file = config_file
         if version is None:
             self._version = getVersion(
-                os.path.join(self._save_dir, self._name))
+                os.path.join(self.save_dir, self.name))
         else:
             self._version = version
         self.log_file = None
         self.abs_log_path = None
+
+    def log_hyperparams(self, params):
+        super().log_hyperparams(params)
+        self.tb_logger.log_hyperparams(params)
+        pass
+
+    def log_metrics(self, metrics, step=None, epoch=None):
+        super().log_metrics(metrics, step=step, epoch=epoch)
+        self.tb_logger.log_metrics(metrics, step=step, epoch=epoch)
+        pass
+
+    def log_metrics_from_log_file(self, metrics, step=None, epoch=None):
+        super().log_metrics(metrics, step=step, epoch=epoch)
+        self.tb_logger.log_metrics(metrics, step=step, epoch=epoch)
+        pass
+
+    def save(self):
+        # save config_file
+        # log_dir = os.path.join(os.getcwd(), self.save_dir, self.name,
+        #                        f'version_{self.version}')
+        # saveConfig(log_dir, self.config_file)
+        super().save()
+        self.tb_logger.save()
+        pass
 
     def _get_vis_loss_dict(self,
                            log: pd.DataFrame,
@@ -65,8 +97,8 @@ class VAELogger(TestTubeLogger):
     def _load_log_file(self):
         # renew log file each time calling this function
 
-        rel_log_path = os.path.join(self._save_dir,
-                                    self._name,
+        rel_log_path = os.path.join(self.save_dir,
+                                    self.name,
                                     f'version_{self.version}')
         abs_log_path = os.path.join(os.getcwd(), rel_log_path)
         self.abs_log_path = abs_log_path
@@ -103,19 +135,20 @@ class VAELogger(TestTubeLogger):
     def draw_multiple_loss_curves(self):
         log = self._load_log_file()
         try:
-            recon_loss_dict = self._get_vis_loss_dict(log, 'Reconstruction_Loss')
+            recon_loss_dict = self._get_vis_loss_dict(
+                log, 'Reconstruction_Loss')
             kl_loss_dict = self._get_vis_loss_dict(log, 'KLD')
             train_loss_dict = self._get_vis_loss_dict(log, 'loss')
             val_loss_dict = self._get_vis_loss_dict(log, 'val_loss')
             lr_dict = self._get_vis_loss_dict(log, 'lr')
 
             vis_loss_curve_diff_scale(log_path=self.abs_log_path,
-                                    data={'train val losses': [{'train loss': train_loss_dict,
-                                                                'val loss': val_loss_dict}],
+                                      data={'train val losses': [{'train loss': train_loss_dict,
+                                                                  'val loss': val_loss_dict}],
                                             'recon loss': recon_loss_dict,
                                             'kl loss': kl_loss_dict,
                                             'learning rate': lr_dict},
-                                    name="diagnostic_loss_curve.jpeg")
+                                      name="diagnostic_loss_curve.jpeg")
         except Exception as e:
             LOGGER.warning(e)
 
@@ -132,9 +165,11 @@ class VAELogger(TestTubeLogger):
         self.config_file['trainer_params']['time_used'] = time_used
 
     def finalize(self, status: str):  # -> None
-        super().finalize(status)
+        for logger in self.loggers:
+            logger.finalize(status)
+
         self.experiment.debug = self.debug
-        log_dir = os.path.join(self._save_dir, self._name,
+        log_dir = os.path.join(self.save_dir, self.name,
                                f'version_{self.version}')
         self.draw_loss_curve()
         self.draw_kl_recon_loss()
@@ -153,7 +188,9 @@ class PerceptualLogger(CSVLogger):
                  ):
         super().__init__(save_dir,
                          name=name)
-        self._version = getVersion(os.path.join(self._save_dir, self._name))
+        self.save_dir = save_dir
+        self.name = name
+        self._version = getVersion(os.path.join(self.save_dir, self.name))
 
     def draw_loss_curve(self):
         log = pd.read_csv(self.experiment.metrics_file_path)

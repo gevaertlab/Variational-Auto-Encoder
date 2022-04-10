@@ -1,0 +1,32 @@
+model_params:
+  name: "VAE3DPerceptual"
+  in_channels: 1
+  latent_dim: 2048
+  hidden_dims: [8, 32, 128, 512]
+  beta: 1.0e-05
+  gamma: 0.01 # weight for the perceptual loss
+  example_input_shape=: [32, 32, 32]
+  perceptual_net:
+    path_to_weights: "/labs/gevaertlab/users/yyhhli/code/vae/perceptual_network/pretrained_models/resnet_34_23dataset.pth"
+
+
+exp_params:
+  dataset: LIDCPatchAugDataset
+  LR: 0.00002
+  batch_size: 512 # NOTE: change this
+  # weight_decay: 0.0
+  max_lr: 0.0005
+  final_div_factor: 10000
+  early_stopping: "False"
+
+trainer_params:
+  max_epochs: 500
+  log_every_n_steps: 1
+  check_val_every_n_epoch: 1
+
+logging_params:
+  save_dir: "logs/"
+  name: "VAE3DPERCEPTUAL"
+  visualize_interval: 2 # multiplications of "check_val_every_n_epoch"
+  manual_seed: 9001
+

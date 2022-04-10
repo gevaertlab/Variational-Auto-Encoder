@@ -115,6 +115,8 @@ def test_stanfordradiogenomics_dataset():
     from datasets.ct.ct_stanfordradiogenomics import StanfordRadiogenomicsDataset
     stanfordradiogenomics = StanfordRadiogenomicsDataset()
     data = stanfordradiogenomics[1]
+    f = stanfordradiogenomics._get_files()
+    stanfordradiogenomics._set_ds_info()
     pass
 
 

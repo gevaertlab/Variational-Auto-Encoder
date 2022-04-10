@@ -69,6 +69,7 @@ def summarize_mul_models(metric="AUROC", task="StfAJCC", model="random_forest",
 
 def plot_box(data, save_path, figsize=(8, 5)):
     plt.figure(figsize=figsize)
+    plt.ylim([0, 1])
     ##### Set style options here #####
     sns.set_style("whitegrid")  # "white","dark","darkgrid","ticks"
     boxprops = dict(linestyle='-', linewidth=1.5, color='#00145A')
@@ -92,6 +93,8 @@ def plot_box(data, save_path, figsize=(8, 5)):
     for x, val, c in zip(xs, vals, palette[:len(vals)]):
         plt.scatter(x, val, alpha=0.4, color=c)
     plt.savefig(save_path, dpi=400)
+    print(f"saved to {save_path}")
+    pass
 
 
 if __name__ == "__main__":
@@ -102,12 +105,14 @@ if __name__ == "__main__":
     parser.add_argument("--names", "-n", nargs="+", default="")
     parser.add_argument("--versions", "-v", nargs="+",
                         default=["VAE3D32AUG_49", "VAE3D32AUG_51", "VAE3D32AUG_53",
-                                 "PRETRAINED_VAE_1", "PRETRAINED_VAE_2", "PRETRAINED_VAE_3",
-                                 "VAE3D32AUG_60"])
-    parser.add_argument("--metric", "-m", default="AUROC")
-    parser.add_argument("--task", "-t", default="StfAJCC")
+                                 "PRETRAINED_VAE_4", "PRETRAINED_VAE_5", "PRETRAINED_VAE_6", "VAE3D32AUG_60",
+                                 "VAE3D32AUG_70"])
+    parser.add_argument("--metric", "-m", default="Precision")
+    parser.add_argument("--tasks", "-t", nargs="+", default=["StfAJCC", "StfEGFRMutation", "StfHisGrade",
+                        "StfKRASMutation", "StfLymphInvasion", "StfNStage", "StfTStage", "StfPleuralInvasion"])
     parser.add_argument("--model", default="random_forest")
     args = parser.parse_args()
-
-    organize(versions=args.versions, metric=args.metric,
-             task=args.task, model=args.model, names=args.names)
+    for task in args.tasks:
+        organize(versions=args.versions, metric=args.metric,
+                 task=task, model=args.model, names=args.names)
+    pass

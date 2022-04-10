@@ -133,7 +133,7 @@ class CTInfoDict:
                     name: str,
                     info_dict: dict):
         if name in self.data_dict:
-            self.data_dict.update(info_dict)
+            self.data_dict[name].update(info_dict)
         else:
             self.data_dict[name] = info_dict
         pass

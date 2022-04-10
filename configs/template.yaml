@@ -41,6 +41,9 @@ exp_params:
     # used in OneCycleLR to fasten training
   final_div_factor: optional 10000
     # used in OneCycleLR to fasten training
+  early_stopping: optional True
+    # whether to use early stopping during training
+
 
 trainer_params:
   # params for training, used to initialize trainer

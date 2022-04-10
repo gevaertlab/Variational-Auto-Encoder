@@ -42,15 +42,15 @@ class Application:
                  dataloaders: Dict = {'train': 'train_dataloader',
                                       'val': 'val_dataloader'}
                  ):
-        """TODO
+        """
 
         Args:
-            log_name (str): [description]
-            version (int): [description]
-            task_name (str): [description]
-            task_kwds (dict, optional): [description]. Defaults to {}.
-            base_model_name (str, optional): [description]. Defaults to 'VAE3D'.
-            dataloaders (Dict, optional): [description]. Defaults to {'train': 'train_dataloader', 'val': 'val_dataloader'}.
+            log_name (str): log dir to load model
+            version (int): log version to load model
+            task_name (str): task name, should implement in tasks
+            task_kwds (dict, optional): pass into get_labels. Defaults to {}.
+            base_model_name (str, optional): base name of model category. Defaults to 'VAE3D'.
+            dataloaders (Dict, optional): dataloaders to predict. Defaults to {'train': 'train_dataloader', 'val': 'val_dataloader'}.
         """
         self.timer = Timer(
             name=(osp.basename(__file__), self.__class__.__name__))
@@ -122,7 +122,10 @@ class Application:
         X, Y = self.task.transform(self.embeddings, self.labels)
         return X, Y
 
-    def task_prediction(self, tune_hparams=True, models='all', bootstrapping=False):
+    def task_prediction(self,
+                        tune_hparams=True,
+                        models='all',
+                        bootstrapping=False):
         """
         Predict a task
         Args:

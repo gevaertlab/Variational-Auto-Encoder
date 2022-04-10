@@ -21,11 +21,10 @@ def getVersion(path):
 
 
 def saveConfig(path, config_file):
-    with open(os.path.join(path,
-                           'config.yaml'),
-              'w') as f:
+    
+    with open(os.path.join(path, 'config.yml'), "w") as f:
         yaml.dump(config_file, f)
-
+    pass
 
 def mkdir_safe(dir: str):
     if not os.path.exists(dir):
