@@ -40,13 +40,18 @@ class ApplicationCV(Application):
                                                        '.'.join([self.task_name,
                                                                  'cv_result_dict',
                                                                  'json'])))
+        # also initializing hparam_dict, in case we don't want to tune hparams
+        self.hparam_dict = JsonDict(save_path=osp.join(self.APP_DIR,
+                                                       self.save_dir,
+                                                       '.'.join([self.task_name,
+                                                                 'best_hparams',
+                                                                 'json'])))
         pass
-
 
     def task_prediction(self,
                         tune_hparams=True,
                         models='xgboost',
-                        ):
+                        fold=5):
         border = "-----"
         self.logger.info(
             f"{border}CV prediction for task {self.task_name}{border}")
@@ -58,7 +63,15 @@ class ApplicationCV(Application):
                                   models=models,
                                   results=results,
                                   tune_hparams=tune_hparams,
-                                  hparam_dict=self.hparam_dict
-                                  )
+                                  hparam_dict=self.hparam_dict,
+                                  fold=fold,)
 
         return results
+
+    def save_results(self, verbose=True):
+        """ save predicted results """
+        assert self.result_dict.keys(), "result_dict doesn't exist"
+        self.result_dict.save()
+        if verbose:
+            self.logger.info(f"Saved results to {self.result_dict.save_path}")
+        pass

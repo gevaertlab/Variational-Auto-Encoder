@@ -32,6 +32,18 @@ class LIDCPatchAugDataset(LIDCPatchDataset):
         super(LIDCPatchDataset, self).__init__(*args, **kwargs)
         pass
 
+class LIDCPatchAugDebugDataset(LIDCPatchDataset):
+
+    def __init__(self, length=60, *args, **kwargs):  # -> None
+        if not kwargs or kwargs['root_dir'] is None:
+            kwargs['root_dir'] = osp.join(
+                DS_ROOT_DIR, 'TCIA_LIDC/LIDC-patch-32_aug/')
+        super(LIDCPatchDataset, self).__init__(*args, **kwargs)
+        self.length = length
+        pass
+
+    def __len__(self):
+        return self.length
 
 class LIDCPatchLabelDataset(LIDCPatchDataset):
 

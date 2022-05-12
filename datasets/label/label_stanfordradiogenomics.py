@@ -69,7 +69,8 @@ class LabelStfReGroup(LabelStanfordRadiogenomics):
         """
         super().__init__(name=name, **kwds)
         self.regroup_tuples = regroup_tuples
-        assert any(isinstance(t[1], str) for t in self.regroup_tuples), "regroup type should be string"
+        assert any(isinstance(t[1], str)
+                   for t in self.regroup_tuples), "regroup type should be string"
         self.regroup_dict = self.init_regroup_dict(regroup_tuples)
         self.na_value = na_value
         pass

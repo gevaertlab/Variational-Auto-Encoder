@@ -29,6 +29,9 @@ class VAE3DPerceptual(VAE3D):
             self.perceptual_net = MedicalNet(**perceptual_net)
         else:
             self.perceptual_net = perceptual_net
+        # freeze Parameters
+        for param in self.perceptual_net.parameters():
+            param.requires_grad = False
         self.gamma = gamma
         pass
 

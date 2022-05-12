@@ -380,6 +380,7 @@ def predict_task(task: TaskBase,
     assert isinstance(models, list)
     LOGGER.info(f"models used {models}")
     
+    ### initialize results
     if results:
         result_dict, pred_dict, pred_stats, best_hparams = results
         pred_dict['true'] = Y['val']
@@ -393,12 +394,17 @@ def predict_task(task: TaskBase,
         LOGGER.info(
             f"Before transform: X shape = train:{np.array(X['train']).shape}, val:{np.array(X['val']).shape}; Y shape = train:{np.array(Y['train']).shape}, val:{np.array(Y['val']).shape}")
 
+    ### process data
     X_processed, Y_processed = task.transform(X, Y)
 
     if verbose:
         # report data summary
         data_summary(X_processed, Y_processed, task.task_type)
 
+    ### dimensionality reduction
+    
+
+    ### predict
     for model_name in models:
         model_result = predict_with_model(task_type=task.task_type,
                                           X=X_processed, Y=Y_processed,
@@ -433,6 +439,6 @@ def data_summary(X, Y, task_type):
         val_count = pd.DataFrame(np.array((vval, cval)).T,
                                  columns=["value", "count"])
         data_summary += "\n" + \
-            f"Y classes = train: \n{train_count}; val: \n{val_count}"
+            f"Y classes = \n train: \n{train_count}; \n val: \n{val_count}"
     LOGGER.info(data_summary)
     pass

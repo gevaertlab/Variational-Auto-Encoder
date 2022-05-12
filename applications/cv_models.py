@@ -3,10 +3,11 @@
 
 from collections import Counter
 from sklearn.model_selection import StratifiedKFold
+from torch import isin
 from applications.models import MODELS, data_summary
 from applications.tasks.task_base import TaskBase
 from utils.python_logger import get_logger
-from models import predict_with_model
+from .models import predict_with_model
 from typing import Union
 import numpy as np
 import pandas as pd
@@ -48,19 +49,19 @@ def cv_predict_task(task: TaskBase,
         data_summary(X_processed, Y_processed, task.task_type)
 
     # stack X and Y
-    if isinstance(X_processed, pd.DataFrame):
+    if isinstance(X_processed['train'], pd.DataFrame):
         X_processed = pd.concat(
             [X_processed['train'], X_processed['val']], axis=0).reset_index()
-    elif isinstance(X_processed, np.ndarray):
-        X_processed = np.stack(
+    elif isinstance(X_processed['train'], np.ndarray):
+        X_processed = np.concatenate(
             (X_processed['train'], X_processed['val']), axis=0)
-    if isinstance(Y_processed, pd.DataFrame):
+    if isinstance(Y_processed['train'], pd.DataFrame):
         Y_processed = pd.concat(
             [Y_processed['train'], Y_processed['val']], axis=0).reset_index()
-    elif isinstance(Y_processed, np.ndarray):
-        Y_processed = np.stack(
+    elif isinstance(Y_processed['train'], np.ndarray):
+        Y_processed = np.concatenate(
             (Y_processed['train'], Y_processed['val']), axis=0)
-    
+
     for model_name in models:
         model_result = cv_predict_eval_with_model(task_type=task.task_type,
                                                   X=X_processed,
@@ -72,7 +73,13 @@ def cv_predict_task(task: TaskBase,
                                                   fold=fold,
                                                   verbose=verbose,
                                                   seed=seed)
-        result_dict[model_name] = model_result
+
+        model_result_summary = [r[0] for r in model_result]
+        model_metrics_dict = {}
+        for key in model_result_summary[0].keys():
+            model_metrics_dict[key] = [model_result_summary[i][key]
+                                       for i in range(len(model_result_summary))]
+        result_dict[model_name] = model_metrics_dict
     return result_dict
 
 
@@ -96,12 +103,18 @@ def cv_predict_eval_with_model(task_type: str,
                           random_state=seed)
     results = []
     for train_idx, test_idx in skf.split(X, Y):
-        X_train, X_test = X.iloc[train_idx], X.iloc[test_idx]
-        Y_train, Y_test = Y[train_idx], Y[test_idx]
+        if isinstance(X, pd.DataFrame):
+            X_train, X_test = X.iloc[train_idx], X.iloc[test_idx]
+        elif isinstance(X, np.ndarray):
+            X_train, X_test = X[train_idx], X[test_idx]
+        if isinstance(Y, pd.DataFrame):
+            Y_train, Y_test = Y.iloc[train_idx], Y.iloc[test_idx]
+        elif isinstance(Y, np.ndarray):
+            Y_train, Y_test = Y[train_idx], Y[test_idx]
         print("train", Counter(Y_train), "test", Counter(Y_test))
         model_result = predict_with_model(task_type=task_type,
-                                          X={"train": X_train, "test": X_test},
-                                          Y={"train": Y_train, "test": Y_test},
+                                          X={"train": X_train, "val": X_test},
+                                          Y={"train": Y_train, "val": Y_test},
                                           inverse_transform=inverse_transform,
                                           model_name=model_name,
                                           hparam_dict=hparam_dict,

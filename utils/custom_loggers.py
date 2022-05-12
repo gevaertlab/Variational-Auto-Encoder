@@ -1,6 +1,7 @@
 import datetime
 import logging
 import os
+from readline import set_pre_input_hook
 from typing import Optional
 
 import pandas as pd
@@ -39,6 +40,15 @@ class VAELogger(CSVLogger):
                          version=version,
                          flush_logs_every_n_steps=vis_interval,
                          prefix=prefix)
+
+        self.vis_interval = vis_interval
+        self.config_file = config_file
+        if version is None:
+            self._version = getVersion(
+                os.path.join(self.save_dir, self.name))
+        else:
+            self._version = version
+        
         # combining tensorboard and csv logger
         self.tb_logger = TensorBoardLogger(save_dir,
                                            name=name,
@@ -50,14 +60,6 @@ class VAELogger(CSVLogger):
                                            sub_dir="tb_log",
                                            log_graph=log_graph,
                                            prefix=prefix)
-
-        self.vis_interval = vis_interval
-        self.config_file = config_file
-        if version is None:
-            self._version = getVersion(
-                os.path.join(self.save_dir, self.name))
-        else:
-            self._version = version
         self.log_file = None
         self.abs_log_path = None
 
@@ -66,14 +68,14 @@ class VAELogger(CSVLogger):
         self.tb_logger.log_hyperparams(params)
         pass
 
-    def log_metrics(self, metrics, step=None, epoch=None):
-        super().log_metrics(metrics, step=step, epoch=epoch)
-        self.tb_logger.log_metrics(metrics, step=step, epoch=epoch)
+    def log_metrics(self, metrics, step=None):
+        super().log_metrics(metrics, step=step)
+        self.tb_logger.log_metrics(metrics, step=step)
         pass
 
-    def log_metrics_from_log_file(self, metrics, step=None, epoch=None):
-        super().log_metrics(metrics, step=step, epoch=epoch)
-        self.tb_logger.log_metrics(metrics, step=step, epoch=epoch)
+    def log_metrics_from_log_file(self, metrics, step=None):
+        super().log_metrics(metrics, step=step)
+        self.tb_logger.log_metrics(metrics, step=step)
         pass
 
     def save(self):
@@ -141,13 +143,15 @@ class VAELogger(CSVLogger):
             train_loss_dict = self._get_vis_loss_dict(log, 'loss')
             val_loss_dict = self._get_vis_loss_dict(log, 'val_loss')
             lr_dict = self._get_vis_loss_dict(log, 'lr')
+            perceptual_loss_dict = self._get_vis_loss_dict(log, 'perceptual_loss')
 
             vis_loss_curve_diff_scale(log_path=self.abs_log_path,
                                       data={'train val losses': [{'train loss': train_loss_dict,
                                                                   'val loss': val_loss_dict}],
                                             'recon loss': recon_loss_dict,
                                             'kl loss': kl_loss_dict,
-                                            'learning rate': lr_dict},
+                                            'learning rate': lr_dict,
+                                            "perceptual loss": perceptual_loss_dict},
                                       name="diagnostic_loss_curve.jpeg")
         except Exception as e:
             LOGGER.warning(e)
@@ -165,8 +169,6 @@ class VAELogger(CSVLogger):
         self.config_file['trainer_params']['time_used'] = time_used
 
     def finalize(self, status: str):  # -> None
-        for logger in self.loggers:
-            logger.finalize(status)
 
         self.experiment.debug = self.debug
         log_dir = os.path.join(self.save_dir, self.name,
@@ -176,6 +178,9 @@ class VAELogger(CSVLogger):
         self.draw_multiple_loss_curves()
         self.add_notes()
         saveConfig(log_dir, self.config_file)
+
+        super().finalize(status)
+        self.tb_logger.finalize(status)
         self.save()
         self.close()
 

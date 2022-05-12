@@ -13,12 +13,12 @@ from utils.python_logger import get_logger
 from utils.save_dict import JsonDict, NpyDict
 from utils.timer import Timer
 from utils.visualization import (confusion_matrix_models, vis_clustermap,
-                                 vis_heatmap, vis_pca, vis_tsne,
+                                 vis_heatmap, vis_pca, vis_tsne, vis_umap,
                                  ytrue_ypred_scatter)
 
 from applications.associations import get_stats_results
 
-from .__init__ import get_task
+from .tasks import get_task
 from .models import predict_task
 
 
@@ -407,5 +407,14 @@ class Application:
                      save_path=os.path.join(
                      save_dir, f"{self.version}_{self.task_name}_tsne_val.jpeg"),
                      label_name=self.task_name, **kwarg)
+        if "umap" in figures:
+            vis_umap(data=X['train'], label=Y['train'],
+                     save_path=os.path.join(
+                save_dir, f"{self.version}_{self.task_name}_umap_train.jpeg"),
+                label_name=self.task_name, **kwarg)
+            vis_umap(data=X['val'], label=Y['val'],
+                     save_path=os.path.join(
+                save_dir, f"{self.version}_{self.task_name}_umap_val.jpeg"),
+                label_name=self.task_name, **kwarg)
 
         pass
