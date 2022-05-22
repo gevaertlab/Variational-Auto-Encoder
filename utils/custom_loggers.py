@@ -28,7 +28,7 @@ class VAELogger(CSVLogger):
                  save_dir: str,
                  name: str,
                  #  description: Optional[str] = '',
-                 #  debug: bool = False,
+                 debug: bool = False,
                  version: Optional[int] = None,
                  #  create_git_tag: bool = False,
                  log_graph: bool = False,
@@ -43,18 +43,19 @@ class VAELogger(CSVLogger):
 
         self.vis_interval = vis_interval
         self.config_file = config_file
+        self.debug = debug
         if version is None:
             self._version = getVersion(
                 os.path.join(self.save_dir, self.name))
         else:
             self._version = version
-        
+
         # combining tensorboard and csv logger
         self.tb_logger = TensorBoardLogger(save_dir,
                                            name=name,
                                            #  description=description,
                                            #  debug=debug,
-                                           version=version,
+                                           version=self._version,
                                            #  create_git_tag=create_git_tag,
                                            default_hp_metric=False,
                                            sub_dir="tb_log",
@@ -89,12 +90,14 @@ class VAELogger(CSVLogger):
 
     def _get_vis_loss_dict(self,
                            log: pd.DataFrame,
-                           col_name: str):
-        df = log[['epoch', col_name]].dropna()
-        loss = list(df[col_name])
-        epoch = list(df['epoch'])
-        return {'epoch': epoch,
-                'loss': loss}
+                           col_name: str,
+                           per: str = "step"):
+        # get dict of epochs and losses
+        df = log[[per, col_name]].dropna()
+        value = list(df[col_name])
+        per = list(df[per])
+        return {f'{per}': per,
+                'value': value}
 
     def _load_log_file(self):
         # renew log file each time calling this function
@@ -136,37 +139,62 @@ class VAELogger(CSVLogger):
 
     def draw_multiple_loss_curves(self):
         log = self._load_log_file()
-        try:
-            recon_loss_dict = self._get_vis_loss_dict(
-                log, 'Reconstruction_Loss')
-            kl_loss_dict = self._get_vis_loss_dict(log, 'KLD')
-            train_loss_dict = self._get_vis_loss_dict(log, 'loss')
-            val_loss_dict = self._get_vis_loss_dict(log, 'val_loss')
-            lr_dict = self._get_vis_loss_dict(log, 'lr')
-            perceptual_loss_dict = self._get_vis_loss_dict(log, 'perceptual_loss')
+        # define loss dict {"name to be plotted": "name in log file"}
+        mandatory = {'train loss': 'loss', 'val loss': 'val_loss'}
+        optional_keys = {'recon loss': 'Reconstruction_Loss', 
+        'kl loss': 'KLD', 
+        'learning rate':'lr', 
+        "perceptual loss": 'perceptual_loss'}
+        mloss_dict = {}
+        loss_dict = {}
+        for pname, lname in mandatory.items():
+            mloss_dict[pname] = self._get_vis_loss_dict(log, lname)
+        for pname, lname in optional_keys.items():
+            if lname in log.columns:
+                loss_dict[pname] = lname
+        loss_dict['train val losses'] = mloss_dict
+        vis_loss_curve_diff_scale(log_path=self.abs_log_path,
+                                  data=loss_dict,
+                                  name="diagnostic_loss_curve.jpeg")
+        # pass
 
-            vis_loss_curve_diff_scale(log_path=self.abs_log_path,
-                                      data={'train val losses': [{'train loss': train_loss_dict,
-                                                                  'val loss': val_loss_dict}],
-                                            'recon loss': recon_loss_dict,
-                                            'kl loss': kl_loss_dict,
-                                            'learning rate': lr_dict,
-                                            "perceptual loss": perceptual_loss_dict},
-                                      name="diagnostic_loss_curve.jpeg")
-        except Exception as e:
-            LOGGER.warning(e)
+
+
+        # try:
+        #     recon_loss_dict = self._get_vis_loss_dict(
+        #         log, 'Reconstruction_Loss')
+        #     kl_loss_dict = self._get_vis_loss_dict(log, 'KLD')
+        #     train_loss_dict = self._get_vis_loss_dict(log, 'loss')
+        #     val_loss_dict = self._get_vis_loss_dict(log, 'val_loss')
+        #     lr_dict = self._get_vis_loss_dict(log, 'lr')
+        #     perceptual_loss_dict = self._get_vis_loss_dict(log, 'perceptual_loss')
+
+        #     vis_loss_curve_diff_scale(log_path=self.abs_log_path,
+        #                               data={'train val losses': [{'train loss': train_loss_dict,
+        #                                                           'val loss': val_loss_dict}],
+        #                                     'recon loss': recon_loss_dict,
+        #                                     'kl loss': kl_loss_dict,
+        #                                     'learning rate': lr_dict,
+        #                                     "perceptual loss": perceptual_loss_dict},
+        #                               name="diagnostic_loss_curve.jpeg")
+        # except Exception as e:
+        #     LOGGER.warning(e)
 
     def add_notes(self):
         # add notes to config_file
         # 1. add time used
         log = self._load_log_file()
-        time_col = self._get_vis_loss_dict(log, "created_at")
-        time_col['loss'] = [datetime.datetime.strptime(
-            tstr, '%Y-%m-%d %H:%M:%S.%f') for tstr in time_col['loss']]
-        time_used = str(max(time_col['loss']) -
-                        min(time_col['loss'])).split('.')[0]
-        print(f"time used: {time_used}")
-        self.config_file['trainer_params']['time_used'] = time_used
+        if not "created_at" in log.columns:
+            pass
+        else:
+            time_col = self._get_vis_loss_dict(log, "created_at")
+            time_col['loss'] = [datetime.datetime.strptime(
+                tstr, '%Y-%m-%d %H:%M:%S.%f') for tstr in time_col['loss']]
+            time_used = str(max(time_col['loss']) -
+                            min(time_col['loss'])).split('.')[0]
+            print(f"time used: {time_used}")
+            self.config_file['trainer_params']['time_used'] = time_used
+            pass
 
     def finalize(self, status: str):  # -> None
 
@@ -182,7 +210,7 @@ class VAELogger(CSVLogger):
         super().finalize(status)
         self.tb_logger.finalize(status)
         self.save()
-        self.close()
+        pass
 
 
 class PerceptualLogger(CSVLogger):
@@ -219,4 +247,4 @@ class PerceptualLogger(CSVLogger):
         super().finalize(status)
         self.save()
         self.draw_loss_curve()
-        self.close()
+        pass

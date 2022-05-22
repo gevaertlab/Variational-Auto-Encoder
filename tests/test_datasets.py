@@ -120,5 +120,10 @@ def test_stanfordradiogenomics_dataset():
     pass
 
 
+def test_stanford_label_dataset():
+    sys.path.insert(1, os.getcwd())
+    from baselines.
+
+
 if __name__ == '__main__':
     test_stanfordradiogenomics_dataset()

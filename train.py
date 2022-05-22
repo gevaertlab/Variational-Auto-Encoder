@@ -16,6 +16,7 @@ from pytorch_lightning.plugins import DDPPlugin
 
 
 def main(config_name=None):
+    # script config name override arg name..
     if config_name:
         config = process_config(config_name)
     else:
@@ -47,7 +48,7 @@ def main(config_name=None):
 
     print("early_stopping:", config['exp_params']['early_stopping'])  # debug
 
-    callbacks = [model_checkpoint] if not config['exp_params']['early_stopping'] else [
+    callbacks = [model_checkpoint] if config['exp_params']['early_stopping'] == "False" else [
         model_checkpoint, early_stopping]
 
     # experiment
@@ -58,19 +59,21 @@ def main(config_name=None):
     # trainer
     # NOTE: training stucked, see https://github.com/PyTorchLightning/pytorch-lightning/issues/5865
     # see https://stackoverflow.com/questions/68000761/pytorch-ddp-finding-the-cause-of-expected-to-mark-a-variable-ready-only-once
+    # https://github.com/PyTorchLightning/pytorch-lightning/issues/9242#issuecomment-951820434
     # dist.init_process_group("gloo", rank=rank, world_size=world_size)
     # ddp = DDP(module=experiment, find_unused_parameters=False)
+    
     runner = Trainer(default_root_dir=f"{vae_logger.save_dir}",
                      logger=vae_logger,
                      # specify callback
                      callbacks=callbacks,
                      num_sanity_val_steps=100,
                      #  strategy=DDPStrategy(),
-                     strategy=DDPPlugin(find_unused_parameters=False),
+                     accelerator="gpu",
+                     #  strategy="ddp",  # DDPPlugin(find_unused_parameters=False)
                      auto_select_gpus=True,
                      auto_scale_batch_size=True,
                      #  accelerator="ddp",
-                     gpus=[2, 3],
                      **config['trainer_params'])
 
     if "info" in config:
@@ -85,5 +88,5 @@ def main(config_name=None):
 
 
 if __name__ == '__main__':
-    main("perceptual_test/test1")
+    main("exp_train/vae_v5")
     pass

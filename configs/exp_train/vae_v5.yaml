@@ -14,11 +14,12 @@ exp_params:
   final_div_factor: 10000
 
 trainer_params:
+  devices: 1
   max_epochs: 500
-  check_val_every_n_epoch: 50
+  check_val_every_n_epoch: 20
 
 logging_params:
   save_dir: "logs/"
   name: "VAE3D32AUG"
-  visualize_interval: 4 # multiplications of "check_val_every_n_epoch"
+  visualize_interval: 60 # multiplications of "check_val_every_n_epoch"
   manual_seed: 9001

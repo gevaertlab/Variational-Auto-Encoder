@@ -72,7 +72,10 @@ class VAEXperiment(pl.LightningModule):
         for key in outputs[0].keys():
             output_dict[key] = torch.stack([o[key] for o in outputs]).mean()
         for key, val in output_dict.items():
-            self.log(key, val.item(), logger=True, sync_dist=True)
+            self.log(key, val.item(),
+                     on_step=False, on_epoch=True, prog_bar=False,
+                     logger=True, sync_dist=True)
+        self.log("step", float(self.global_step),)
         pass
 
     def validation_step(self, batch, batch_idx, optimizer_idx=0):
@@ -97,9 +100,12 @@ class VAEXperiment(pl.LightningModule):
         # visualize according to interval
         # log val_loss and Learning rate
         self.log('val_loss', torch.mean(torch.stack(val_loss)).item(),
+                 on_step=False, on_epoch=True, prog_bar=True,
                  logger=True, sync_dist=True)
         self.log('lr', self.optimizers().param_groups[0]['lr'],
+                 on_step=False, on_epoch=True, prog_bar=True,
                  logger=True, sync_dist=True)
+        self.log("step", self.global_step,)
         if self.current_epoch % int(self.logger.vis_interval) == \
                 int(self.logger.vis_interval) - 1:
             self.sample_images()
@@ -114,11 +120,13 @@ class VAEXperiment(pl.LightningModule):
         recons = self.model.generate(test_input)
 
         # visualization using our codes
-        midia_dir = "{self.logger.save_dir}{self.logger.name}/version_{self.logger.version}/media"
+        midia_dir = f"{self.logger.save_dir}{self.logger.name}/version_{self.logger.version}/media"
         if not os.path.exists(midia_dir):
             os.makedirs(midia_dir)
-        vis3d_tensor(recons.data, save_path=os.path.join(midia_dir, f"recons_{self.logger.name}_{self.current_epoch}.png"))
-        vis3d_tensor(test_input.data, save_path=os.path.join(midia_dir, f"real_img_{self.logger.name}_{self.current_epoch}.png"))
+        vis3d_tensor(recons.data, save_path=os.path.join(
+            midia_dir, f"recons_{self.logger.name}_{self.current_epoch}.png"))
+        vis3d_tensor(test_input.data, save_path=os.path.join(
+            midia_dir, f"real_img_{self.logger.name}_{self.current_epoch}.png"))
         del test_input, recons  # , samples
 
         # draw loss curves
@@ -140,6 +148,7 @@ class VAEXperiment(pl.LightningModule):
         if self.params['max_lr'] is not None:
             # debug: // 2
             step_per_epoch = self.num_train_imgs // self.params['batch_size']
+            step_per_epoch = 1 if step_per_epoch == 0 else step_per_epoch
             scheduler = optim.lr_scheduler.OneCycleLR(optims[0],
                                                       epochs=self.params['max_epochs'],
                                                       steps_per_epoch=step_per_epoch,

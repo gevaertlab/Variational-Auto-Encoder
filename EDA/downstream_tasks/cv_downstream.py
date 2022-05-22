@@ -30,7 +30,7 @@ def main():
                                              pin_memory=True)
 
     app = ApplicationCV(log_name="VAE3D32AUG",
-                        version=49,
+                        version=70,
                         task_name="StfAJCC",
                         task_kwds={"task_type": "classification"},
                         base_model_name='VAE3D',

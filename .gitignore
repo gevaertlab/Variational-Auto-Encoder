@@ -9,6 +9,7 @@ archive/
 exported/
 vis_*/
 **/pretrained_models
+*.csv
 
 ### Linux ###
 *~

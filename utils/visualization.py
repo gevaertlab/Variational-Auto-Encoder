@@ -127,18 +127,21 @@ def vis_sitk(img, axis=2, slice_num=None, vis_path='/home/yyhhli/code/image data
 
 
 def vis_loss_curve(log_path: str, data: Dict, name='loss_curve.jpeg'):
-
+    """ data = {"metric_name": {"epoch/step": [], "value": []}} """
     # draw loss curve
     fig = plt.figure(figsize=(6, 4))
     plt.yscale('log')
+    k1 = list(data.keys())[0]
+    per = [k for k in data[k1].keys() if k != 'value'][0]
+
     for key, value in data.items():
-        plt.plot(value['epoch'], value['loss'], label=key)
-    plt.xlabel('epoch')
-    plt.ylabel('loss')
-    loss_lst = flatten_list([list(value['loss'])
+        plt.plot(value[per], value['value'], label=key)
+    plt.xlabel(per)
+    plt.ylabel('value')
+    value_lst = flatten_list([list(value['value'])
                              for key, value in data.items()])
-    plt.ylim(np.min(loss_lst),
-             np.percentile(loss_lst, 98))
+    plt.ylim(np.min(value_lst),
+             np.percentile(value_lst, 98))
     plt.legend()
     plt.tight_layout()
     fig.savefig(os.path.join(log_path,
@@ -152,9 +155,15 @@ def vis_loss_curve_diff_scale(log_path: str,
                               name='loss_curve_kl_recon.jpeg',
                               color_map='Set1',
                               offset=80):
-    """ draw loss curve with multiple diff scales """
+    """ 
+    draw loss curve with multiple diff scales 
+    data = {"metric_name": {"epoch/step": [], "value": []}}
+    """
     plt.style.use('bmh')
     plt.figure(figsize=(14, 6))
+
+    k1 = list(data.keys())[0]
+    per = [k for k in data[k1].keys() if k != 'value'][0]
 
     host = host_subplot(111, axes_class=axisartist.Axes)
     plt.subplots_adjust(right=0.75)
@@ -182,20 +191,20 @@ def vis_loss_curve_diff_scale(log_path: str,
     # draw plots
     for i, key in enumerate(keys):
         # plots
-        axes[i].set_xlabel('epoch')
+        axes[i].set_xlabel(per)
         axes[i].set_ylabel(key, size='x-small')
         axes[i].set_yscale('log')
         if isinstance(data[key], dict):
-            axes[i].plot(data[key]['epoch'],
-                         data[key]['loss'],
+            axes[i].plot(data[key][per],
+                         data[key]['value'],
                          c=cmap(i),
                          label=key,
                          linewidth=1)
         elif isinstance(data[key], list):
             sub_dict = data[key][0]
             for j, sub_key in enumerate(sub_dict.keys()):
-                axes[i].plot(sub_dict[sub_key]['epoch'],
-                             sub_dict[sub_key]['loss'],
+                axes[i].plot(sub_dict[sub_key][per],
+                             sub_dict[sub_key]['value'],
                              c=cmap(i),
                              linestyle=linestyles[j],
                              label=sub_key,

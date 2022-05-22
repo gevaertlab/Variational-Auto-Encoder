@@ -11,18 +11,20 @@ model_params:
 
 
 exp_params:
-  dataset: LIDCPatchAugDataset
+  dataset: LIDCPatchAugDataset # LIDCPatchAugDebugDataset
   LR: 0.00002
   batch_size: 512 # NOTE: change this
   # weight_decay: 0.0
   max_lr: 0.0005
   final_div_factor: 10000
-  early_stopping: "False"
+  early_stopping: False
 
 trainer_params:
   max_epochs: 500
   log_every_n_steps: 1
   check_val_every_n_epoch: 1
+  devices: [2, 3]
+  strategy: "ddp"
 
 logging_params:
   save_dir: "logs/"
