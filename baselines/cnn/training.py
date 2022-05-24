@@ -1,6 +1,8 @@
 # defines a pytorch lightning module that handles the training and validation of the CNN model
 
+import json
 import os
+import numpy as np
 import pytorch_lightning as pl
 from torch import optim
 import torch.nn.functional as F
@@ -69,21 +71,37 @@ def main(params):
     trainer = pl.Trainer(**params["trainer_params"])
     trainer.fit(model)
     # evaluation of the model
-    preds = model.predict_dataloader(model.val_dataloader())
-    trainer.test(model, test_dataloaders=model.val_dataloader())
-    return preds
+    results = {}
+    y_val, y_hat_val = np.array([]), np.array([])
+    for x, y in model.val_dataloader():
+        y_hat = model(x)
+        # evaluations of the model
+        # convert to numpy array
+        y_hat = y_hat.detach().cpu().numpy()[: ,1] > 0.5
+        y = y.detach().cpu().numpy()[: ,1]
+        # concat y and y hat
+        y_val = np.concatenate((y_val, y))
+        y_hat_val = np.concatenate((y_hat_val, y_hat))
+
+
+    # NOTE: currently only handles binary classification
+    for metric_name, metric_func in CLASSIFICATION_METRIC_DICT.items():
+        metric = metric_func(y_val, y_hat_val)
+        print(f"{metric_name}: {metric}")
+        results[metric_name] = metric
+    return results
 
 def get_params():
     """ set default params and also allow to override them with args """
     params = {
         "model": {
-            "latent_dim": 1024,
+            "n_classes": 2,
         },
-        "lr": 1e-4,
+        "lr": 1e-3,
         "trainer_params": {
             "accelerator": "gpu",
             "gpus": 1,
-            "max_epochs": 500,
+            "max_epochs": 50, # 500
             "auto_select_gpus": True,
             "log_every_n_steps": 10, },
         "data_params": {},
@@ -102,19 +120,27 @@ if __name__ == "__main__":
     # get the label instance
     seg_file_names = os.listdir(
         "/labs/gevaertlab/data/lung cancer/StanfordRadiogenomics/segmentations_nrrd")
-    label_classes = [LabelStfAJCC, LabelStfEGFRMutation, LabelStfHisGrade,
-                     LabelStfKRASMutation, LabelStfNStage, LabelStfReGroup,
-                     LabelStfRGLymphInvasion, LabelStfRGPleuralInvasion,
+    label_classes = [ # LabelStfAJCC, LabelStfEGFRMutation, LabelStfHisGrade, LabelStfKRASMutation, LabelStfNStage,
+                     # LabelStfRGLymphInvasion, LabelStfRGPleuralInvasion,
                      LabelStfTStage]
     for label_class in label_classes:
         label_instance = label_class()
+        params["model"]["n_classes"] = set(label_instance.regroup_dict.values()).__len__()
         params["data_params"]["label_instance"] = label_instance
         params["data_params"]["dataset_name"] = label_instance.name
+        results = {n: [] for n in CLASSIFICATION_METRIC_DICT.keys()}
         for (idx_train, idx_test), (name_train, name_test) in generate_split(label_instance, file_names=seg_file_names):
             params["data_params"]["train_idx"] = idx_train
             params["data_params"]["val_idx"] = idx_test
             params["data_params"]["train_name"] = name_train
             params["data_params"]["val_name"] = name_test
-            main(params)
+            result = main(params)
+            for k, v in result.items():
+                results[k].append(v)
+        print("label: ", label_instance.name)
+        print("results: ", results)
+        # save results
+        with open(f"/labs/gevaertlab/users/yyhhli/code/vae/baselines/cnn/results/{label_instance.name}.json", "w") as f:
+            json.dump(results, f)
 
     pass

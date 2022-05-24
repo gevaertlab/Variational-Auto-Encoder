@@ -1,14 +1,21 @@
 ### Customized ###
 .vscode/
-logs/
-**/logs
-**/results
-**/visualizations
 patch_extraction/registration/
 archive/
 exported/
-vis_*/
+
+# any log dir
+logs/
+**/logs
+lightning_logs/
 **/pretrained_models
+
+# visualization dirs
+vis_*/
+**/visualizations
+
+# any result
+**/results
 *.csv
 
 ### Linux ###

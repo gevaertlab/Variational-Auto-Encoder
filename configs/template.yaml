@@ -48,8 +48,11 @@ exp_params:
 trainer_params:
   # params for training, used to initialize trainer
 
-  max_epochs: required
-    # e.g. 50000
+  max_epochs: optional
+    # also ok if specify max_steps, pytorch lightning's trainer will default epochs
+    # refer to https://pytorch-lightning.readthedocs.io/en/stable/common/trainer.html#max-epochs
+    # won't require to provide here as pytorch lightning handles this well
+  max_steps: optional
   check_val_every_n_epoch: optional 10
     # how often the validation images will be outputted
 

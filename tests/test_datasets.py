@@ -122,8 +122,20 @@ def test_stanfordradiogenomics_dataset():
 
 def test_stanford_label_dataset():
     sys.path.insert(1, os.getcwd())
-    from baselines.
+    from baselines.cnn.dataset import StanfordLabelDataset
+    from datasets.utils import sitk2tensor
+    from datasets.label.label_stanfordradiogenomics import LabelStfAJCC
+    slds = StanfordLabelDataset(LabelStfAJCC(), transform=sitk2tensor)
+    data = slds[0]
+    print(data)
+    from torch.utils.data import DataLoader
+    dl = DataLoader(slds, batch_size=1, shuffle=False)
+    data = next(iter(dl))
+    print(data)
+    pass
+
+
 
 
 if __name__ == '__main__':
-    test_stanfordradiogenomics_dataset()
+    test_stanford_label_dataset()

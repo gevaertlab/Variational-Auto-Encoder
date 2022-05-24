@@ -110,10 +110,19 @@ def check_config_item(config,
 
 
 def extract_ref_value(ref_value):
-    assert ref_value.startswith('optional ')
-    value = ref_value.split(' ')[-1]
-    if value.isnumeric():
-        value = float(value)
-        if value - int(value) == 0:
-            value = int(value)
-    return value
+    """ 
+    search for the default value in the ref_value string 
+    ref_value = "optional default_value"
+    if default_value is not found, return None
+    """
+    assert ref_value.startswith('optional')
+    if ref_value == "optional":
+        return None
+    else:
+        value = ref_value.split(' ')[-1]
+        if value.isnumeric():
+            value = float(value)
+            if value - int(value) == 0:
+                value = int(value)
+        
+        return value

@@ -11,13 +11,13 @@ class CNNClassification(nn.Module):
 
     def __init__(self,
                  in_channels: int = 1,
-                 latent_dim: int = 1024,
+                 n_classes: int = 2,
                  hidden_dims: List = None,
                  **kwargs):  # -> None
         super(CNNClassification, self).__init__(**kwargs)
         modules = []
         if hidden_dims is None:
-            hidden_dims = [4, 16, 32, 64, 128]
+            hidden_dims = [8, 32, 128, 512]
         # don't modify hidden_dims
         self.hidden_dims = hidden_dims.copy()
         hidden_dims_variable = hidden_dims.copy()
@@ -39,15 +39,15 @@ class CNNClassification(nn.Module):
 
         self.latent_layers = nn.Sequential(*modules)
 
-        # final FC layer and activation using sigmoid
-        self.fc = nn.Linear(hidden_dims_variable[-1]*8, latent_dim)
-        self.fc_activation = nn.Sigmoid()
+        # final FC layer and activation using softmax
+        self.fc = nn.Linear(hidden_dims_variable[-1]*8, n_classes)
+        self.fc_activation = nn.Softmax(dim=1)
         pass
 
     def forward(self, x, **kwargs):
         # x: (batch_size, in_channels, x, y, z)
         # output: (batch_size, 1)
-        x = self.encoder(x)
+        x = self.latent_layers(x)
         x = torch.flatten(x, start_dim=1)
         x = self.fc(x)
         x = self.fc_activation(x)

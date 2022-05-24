@@ -54,6 +54,7 @@ def main(config_name=None):
     # experiment
     # import some of the training params
     config['exp_params']['max_epochs'] = config['trainer_params']['max_epochs']
+    config['exp_params']['max_steps'] = config['trainer_params']['max_steps']
     experiment = VAEXperiment(config['model_params'], config['exp_params'])
 
     # trainer
@@ -62,7 +63,7 @@ def main(config_name=None):
     # https://github.com/PyTorchLightning/pytorch-lightning/issues/9242#issuecomment-951820434
     # dist.init_process_group("gloo", rank=rank, world_size=world_size)
     # ddp = DDP(module=experiment, find_unused_parameters=False)
-    
+
     runner = Trainer(default_root_dir=f"{vae_logger.save_dir}",
                      logger=vae_logger,
                      # specify callback
@@ -71,7 +72,8 @@ def main(config_name=None):
                      #  strategy=DDPStrategy(),
                      accelerator="gpu",
                      #  strategy="ddp",  # DDPPlugin(find_unused_parameters=False)
-                     auto_select_gpus=True,
+                     #  auto_select_gpus=True,
+                     devices=1,
                      auto_scale_batch_size=True,
                      #  accelerator="ddp",
                      **config['trainer_params'])
@@ -88,5 +90,5 @@ def main(config_name=None):
 
 
 if __name__ == '__main__':
-    main("exp_train/vae_v5")
+    main()
     pass

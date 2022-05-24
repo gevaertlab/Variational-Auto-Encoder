@@ -149,9 +149,12 @@ class VAEXperiment(pl.LightningModule):
             # debug: // 2
             step_per_epoch = self.num_train_imgs // self.params['batch_size']
             step_per_epoch = 1 if step_per_epoch == 0 else step_per_epoch
-            scheduler = optim.lr_scheduler.OneCycleLR(optims[0],
-                                                      epochs=self.params['max_epochs'],
-                                                      steps_per_epoch=step_per_epoch,
+            # epochs or steps
+            if self.params["max_epochs"] is not None:
+                p = {"epochs": self.params["max_epochs"], "steps_per_epoch": step_per_epoch}
+            elif self.params["max_steps"] is not None:
+                p = {"total_steps": self.params["max_steps"]}
+            scheduler = optim.lr_scheduler.OneCycleLR(optims[0], **p,
                                                       max_lr=self.params['max_lr'],
                                                       final_div_factor=self.params['final_div_factor'])
             lr_dict = {'scheduler': scheduler,
