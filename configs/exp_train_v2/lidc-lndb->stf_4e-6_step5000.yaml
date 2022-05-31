@@ -9,7 +9,7 @@ model_params:
 
 exp_params:
   dataset: StanfordRadiogenomicsPatchAugDataset
-  LR: 4e-6
+  LR: 4.0e-6
   batch_size: 198
   vis_batch_size: 36
   # weight_decay: 0.0
