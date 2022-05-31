@@ -13,12 +13,12 @@ from utils.python_logger import get_logger
 from utils.save_dict import JsonDict, NpyDict
 from utils.timer import Timer
 from utils.visualization import (confusion_matrix_models, vis_clustermap,
-                                 vis_heatmap, vis_pca, vis_tsne,
+                                 vis_heatmap, vis_pca, vis_tsne, vis_umap,
                                  ytrue_ypred_scatter)
 
 from applications.associations import get_stats_results
 
-from .__init__ import get_task
+from .tasks import get_task
 from .models import predict_task
 
 
@@ -42,15 +42,15 @@ class Application:
                  dataloaders: Dict = {'train': 'train_dataloader',
                                       'val': 'val_dataloader'}
                  ):
-        """TODO
+        """
 
         Args:
-            log_name (str): [description]
-            version (int): [description]
-            task_name (str): [description]
-            task_kwds (dict, optional): [description]. Defaults to {}.
-            base_model_name (str, optional): [description]. Defaults to 'VAE3D'.
-            dataloaders (Dict, optional): [description]. Defaults to {'train': 'train_dataloader', 'val': 'val_dataloader'}.
+            log_name (str): log dir to load model
+            version (int): log version to load model
+            task_name (str): task name, should implement in tasks
+            task_kwds (dict, optional): pass into get_labels. Defaults to {}.
+            base_model_name (str, optional): base name of model category. Defaults to 'VAE3D'.
+            dataloaders (Dict, optional): dataloaders to predict. Defaults to {'train': 'train_dataloader', 'val': 'val_dataloader'}.
         """
         self.timer = Timer(
             name=(osp.basename(__file__), self.__class__.__name__))
@@ -122,7 +122,10 @@ class Application:
         X, Y = self.task.transform(self.embeddings, self.labels)
         return X, Y
 
-    def task_prediction(self, tune_hparams=True, models='all', bootstrapping=False):
+    def task_prediction(self,
+                        tune_hparams=True,
+                        models='all',
+                        bootstrapping=False):
         """
         Predict a task
         Args:
@@ -404,5 +407,14 @@ class Application:
                      save_path=os.path.join(
                      save_dir, f"{self.version}_{self.task_name}_tsne_val.jpeg"),
                      label_name=self.task_name, **kwarg)
+        if "umap" in figures:
+            vis_umap(data=X['train'], label=Y['train'],
+                     save_path=os.path.join(
+                save_dir, f"{self.version}_{self.task_name}_umap_train.jpeg"),
+                label_name=self.task_name, **kwarg)
+            vis_umap(data=X['val'], label=Y['val'],
+                     save_path=os.path.join(
+                save_dir, f"{self.version}_{self.task_name}_umap_val.jpeg"),
+                label_name=self.task_name, **kwarg)
 
         pass

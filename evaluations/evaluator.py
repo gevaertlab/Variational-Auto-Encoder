@@ -146,10 +146,17 @@ class ReconEvaluator(BaseEvaluator):
         self.vis_dir = vis_dir
         pass
 
+    def generate(self, latent_vector: torch.Tensor):
+        """ use decoder to generate 3D images """
+        synth_imgs = self.module.model.decode(latent_vector)
+        return synth_imgs
+
+    
     def visualize(self,
                   dataloader='val_dataloader',
                   dl_params={'shuffle': False, 'drop_last': False},
                   num_batches=10):
+        """ create visualizations for a dataloader """
         if (not isinstance(dataloader, int)) and ("name" not in dl_params):
             self.logger.warning(
                 "didn't specify dataset name, default as \'unknown\'")

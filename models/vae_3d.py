@@ -16,6 +16,7 @@ class VAE3D(VAEBackbone):
                  latent_dim: int = 1024,
                  hidden_dims: List = None,
                  beta=1,
+                 example_input_shape=None,
                  **kwargs):  # -> None
         super(VAE3D, self).__init__()
 
@@ -84,6 +85,11 @@ class VAE3D(VAEBackbone):
             nn.Conv3d(hidden_dims_variable[-1], out_channels=1,  # output_channels should be the same as input channel= -> 1
                       kernel_size=3, padding=1),  # 3d
             nn.Sigmoid())  # modified, images are from 0 to 1 # try not to use this?
+        
+        if example_input_shape:
+            self.example_input_array = torch.rand(1, *example_input_shape)
+        
+        pass
 
     def encode(self, input: Tensor):  # -> List[torch.Tensor@encode]
         """
@@ -133,8 +139,13 @@ class VAE3D(VAEBackbone):
         return [self.decode(z), input, mu, log_var]
 
     def loss_function(self,
+                      recons,
+                      inputs,
+                      mu,
+                      log_var,
+                      M_N,
                       *args,
-                      **kwargs):  # -> dict
+                      **kwargs):  # HACK: bad practice
         """
         Computes the VAE loss function.
         KL(N(\mu, \sigma), N(0, 1)) = \log \frac{1}{\sigma} + \frac{\sigma^2 + \mu^2}{2} - \frac{1}{2}
@@ -142,17 +153,14 @@ class VAE3D(VAEBackbone):
         :param kwargs:
         :return:
         """
-        recons = args[0]
-        input = args[1]
-        mu = args[2]
-        log_var = args[3]
 
         # Account for the minibatch samples from the dataset
-        kld_weight = kwargs['M_N'] * float(self.beta)
+        kld_weight = M_N * float(self.beta)
 
-        recons_loss = F.mse_loss(recons, input)
+        recons_loss = F.mse_loss(recons, inputs)
 
-        kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim=1), dim=0)
+        kld_loss = torch.mean(-0.5 * torch.sum(1 +
+                              log_var - mu ** 2 - log_var.exp(), dim=1), dim=0)
 
         loss = recons_loss + kld_weight * kld_loss
         # kld_loss positive
@@ -160,7 +168,8 @@ class VAE3D(VAEBackbone):
 
     def sample(self,
                num_samples: int,
-               current_device: int, **kwargs):  # -> Tensor
+               current_device: int, 
+               **kwargs):  # -> Tensor
         """
         Samples from the latent space and return the corresponding
         image space map.

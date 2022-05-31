@@ -13,7 +13,7 @@ def recon_vis_eval():
     parser = argparse.ArgumentParser(
         description='Recon visualization in STF dataset')
     parser.add_argument("--version", "-v",
-                        default=60)
+                        default=70)
     parser.add_argument("--log_name", "-ln", default="VAE3D32AUG")
     parser.add_argument("--ds_name", "-d", default="stf")
     args = parser.parse_args()

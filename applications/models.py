@@ -8,6 +8,7 @@ import pandas as pd
 # models
 from sklearn.ensemble import (GradientBoostingRegressor,
                               RandomForestClassifier, RandomForestRegressor)
+import xgboost as xgb
 from sklearn.feature_selection import SelectFdr, SelectKBest, f_regression
 from sklearn.linear_model import ElasticNet, LogisticRegression
 # Metrics
@@ -98,12 +99,18 @@ rf = {'basemodel': partial(RandomForestClassifier, **RANDOM_DICT, **NJOB_DICT),
 mlp = {'basemodel': partial(MLPClassifier, **RANDOM_DICT, early_stopping=True, max_iter=2000),
        'params': dict(hidden_layer_sizes=[(100, 10), (100, 20), (200, 20), (400, 40)])}
 
+xgbtree = {'basemodel': partial(xgb.XGBClassifier, verbosity=1, **RANDOM_DICT, **NJOB_DICT),
+           'params': dict(learning_rate=[0.01, 0.1],
+                          n_estimators=[100],
+                          reg_alpha=[1, 10])}
 
 CLASSIFICATION_MODELS = {'logistic_regression': lr,
                          'k_nearest_neighbors': knn,
                          'svc': svc,
                          'random_forest': rf,
-                         'mlp': mlp}
+                         'mlp': mlp,
+                         'xgboost': xgbtree}
+
 
 # preprocessing for pipeline
 for modelname, modeldict in REGRESSION_MODELS.items():
@@ -300,7 +307,7 @@ def train_eval_bootstrapping(times: int, X: dict, Y: dict, model,
 
 
 def predict_with_model(task_type: str,
-                       X, Y,
+                       X: dict, Y: dict,
                        inverse_transform=None,
                        model_name: str = 'random_forest',
                        hparam_dict={},
@@ -328,11 +335,7 @@ def predict_with_model(task_type: str,
     # 1. hparams, either load or search or skip
     model_meta = MODELS[task_type][model_name]
     model = model_pipeline(model_base=model_meta['basemodel'])
-    # has_key = model_name in hparam_dict.keys()
-    # if has_key:
-    #     hparams = hparam_dict[model_name]
-    # else:
-    #     hparams = {}
+
     if not tune_hparams:
         # if not tune hyperparameters, then just load previous best parameters, if no, just left blank
         best_params = {
@@ -374,7 +377,10 @@ def predict_task(task: TaskBase,
         models = list(prediction_models.keys())
     elif isinstance(models, str):
         models = [models]
-    print(models)
+    assert isinstance(models, list)
+    LOGGER.info(f"models used {models}")
+    
+    ### initialize results
     if results:
         result_dict, pred_dict, pred_stats, best_hparams = results
         pred_dict['true'] = Y['val']
@@ -388,12 +394,17 @@ def predict_task(task: TaskBase,
         LOGGER.info(
             f"Before transform: X shape = train:{np.array(X['train']).shape}, val:{np.array(X['val']).shape}; Y shape = train:{np.array(Y['train']).shape}, val:{np.array(Y['val']).shape}")
 
+    ### process data
     X_processed, Y_processed = task.transform(X, Y)
 
     if verbose:
         # report data summary
         data_summary(X_processed, Y_processed, task.task_type)
 
+    ### dimensionality reduction
+    
+
+    ### predict
     for model_name in models:
         model_result = predict_with_model(task_type=task.task_type,
                                           X=X_processed, Y=Y_processed,
@@ -428,6 +439,6 @@ def data_summary(X, Y, task_type):
         val_count = pd.DataFrame(np.array((vval, cval)).T,
                                  columns=["value", "count"])
         data_summary += "\n" + \
-            f"Y classes = train: \n{train_count}; val: \n{val_count}"
+            f"Y classes = \n train: \n{train_count}; \n val: \n{val_count}"
     LOGGER.info(data_summary)
     pass

@@ -15,7 +15,9 @@ class TaskBase:
         pass
 
     def transform(self, X, Y):
-        """ standardize X for default, and do nothing to Y """
+        """ 
+        standardize X for default, and do nothing to Y 
+        """
         # for X
         x_train_std, meta_dict = self.normalize(X['train'])
         x_val_std = (X['val'] - meta_dict['mean']) / meta_dict['std']

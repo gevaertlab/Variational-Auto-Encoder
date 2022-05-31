@@ -37,16 +37,24 @@ exp_params:
     # e.g. 0.001
   batch_size: required
     # e.g. 36, image batch size
+  vis_batch_size: optional 36
+    # batch size for visualization of images
   max_lr: optional 0.05
     # used in OneCycleLR to fasten training
   final_div_factor: optional 10000
     # used in OneCycleLR to fasten training
+  early_stopping: optional False
+    # whether to use early stopping during training
+
 
 trainer_params:
   # params for training, used to initialize trainer
 
-  max_epochs: required
-    # e.g. 50000
+  max_epochs: optional
+    # also ok if specify max_steps, pytorch lightning's trainer will default epochs
+    # refer to https://pytorch-lightning.readthedocs.io/en/stable/common/trainer.html#max-epochs
+    # won't require to provide here as pytorch lightning handles this well
+  max_steps: optional
   check_val_every_n_epoch: optional 10
     # how often the validation images will be outputted
 

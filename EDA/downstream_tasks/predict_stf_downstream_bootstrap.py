@@ -14,9 +14,9 @@ def main():
         description='Eval downstream tasks in STF dataset using bootstrap')
     parser.add_argument("--tasks", "-t", nargs="+", default=["StfAJCC", "StfHisGrade",
                                                              "StfNStage", "StfTStage", "StfLymphInvasion",
-                                                             "StfEGFRMutation", "StfKRASMutation"])
+                                                             "StfEGFRMutation", "StfKRASMutation", "StfRGPleuralInvasion"])
     parser.add_argument("--versions", "-v", nargs="+",
-                        default=[1, 2, 3])
+                        default=[4, 5, 6])
     parser.add_argument("--log_name", "-ln", default="PRETRAINED_VAE")
     args = parser.parse_args()
 
@@ -51,14 +51,14 @@ def main():
                               base_model_name='VAE3D',
                               dataloaders={'train': stfrg_train_patch_dataloader,
                                            'val': stfrg_test_patch_dataloader})
-            if version == 60: # NOTE: only tune parameters for the first version
+            if version == 60:  # NOTE: only tune parameters for the first version
                 hp = True
             else:
                 hp = False
             result_dict, hparam_dict = app.task_prediction(
                 tune_hparams=hp, models='random_forest', bootstrapping=True)
 
-    # for task in ["StfHisGrade", "StfNStage", "StfTStage", "StfLymphInvasion", "StfEGFRMutation", "StfKRASMutation"]:  # "StfAJCC",
+    # for task in ["StfHisGrade", "StfNStage", "StfTStage", "StfLymphInvasion", "StfEGFRMutation", "StfKRASMutation", "StfVolume"]:  # "StfAJCC",
     #     for version in [1, 2, 3]:
     #         print(
     #             f"======= Predicting {task} with model version {version} =======")

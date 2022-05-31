@@ -33,8 +33,12 @@ def parse_config():
                         dest="info",
                         help="flag to output information but not train",
                         action="store_true")
+    parser.add_argument("--template", "-T",
+                        dest="template",
+                        help="flag to output template",
+                        default="template")
     args = parser.parse_args()
-    config = process_config(args.filename)
+    config = process_config(args.filename, template=args.template)
     config['note'] = args.note
     if args.info:
         config['info'] = True
@@ -48,13 +52,13 @@ def load_config(filename):
     return config
 
 
-def process_config(filename):
+def process_config(filename, template="template"):
     """
     this function make sure that the config format and items are usable and
     universally applicable by referring to 'template.yaml' config file
     """
     config = load_config(filename)
-    ref_config = load_config('template')
+    ref_config = load_config(template)
     # modify some config params
     file_path = _get_file_path(filename)
     config['file_name'] = os.path.basename(file_path)
@@ -110,10 +114,19 @@ def check_config_item(config,
 
 
 def extract_ref_value(ref_value):
-    assert ref_value.startswith('optional ')
-    value = ref_value.split(' ')[-1]
-    if value.isnumeric():
-        value = float(value)
-        if value - int(value) == 0:
-            value = int(value)
-    return value
+    """ 
+    search for the default value in the ref_value string 
+    ref_value = "optional default_value"
+    if default_value is not found, return None
+    """
+    assert ref_value.startswith('optional')
+    if ref_value == "optional":
+        return None
+    else:
+        value = ref_value.split(' ')[-1]
+        if value.isnumeric():
+            value = float(value)
+            if value - int(value) == 0:
+                value = int(value)
+        
+        return value

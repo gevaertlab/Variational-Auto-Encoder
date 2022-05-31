@@ -2,10 +2,10 @@
 
 import os
 import os.path as osp
-from typing import Dict
+from typing import Dict, List
 import pandas as pd
 from torch.utils.data.dataloader import DataLoader
-from applications import TASK_DICT
+from applications.tasks import TASK_DICT
 from configs.config_vars import BASE_DIR
 from datasets.embedding import Embedding, EmbeddingPredictor
 from datasets.label.label_dict import LABEL_DICT
@@ -22,7 +22,8 @@ class Exporter(EmbeddingPredictor):  # inherited from BaseEvaluator
     def __init__(self,
                  log_name: str,
                  version: int,
-                 dataloaders: dict = {'train': 'train_dataloader', 'val': 'val_dataloader'},
+                 dataloaders: dict = {
+                     'train': 'train_dataloader', 'val': 'val_dataloader'},
                  task_names: str = list(TASK_DICT.keys()),
                  base_model_name: str = 'VAE3D'):
         super().__init__(log_name=log_name,
@@ -41,13 +42,14 @@ class Exporter(EmbeddingPredictor):  # inherited from BaseEvaluator
         pass
 
     def get_data(self):
+        """ loads embeddings, data_names and label_dict in default settings """
         embeddings, data_names = self.get_embeddings()
         label_dict = {task_name: self.get_labels(label_name=task_name,
                                                  data_names=data_names)
                       for task_name in self.task_names}
         return embeddings, data_names, label_dict
 
-    def get_labels(self, label_name, label_kwds: dict, data_names):
+    def get_labels(self, label_name, data_names: List, label_kwds: dict = {}):
         """
         get labels assuming embedding is get,
         return dict of labels not label instance

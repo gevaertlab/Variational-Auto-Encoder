@@ -6,19 +6,20 @@ model_params:
   beta: 1.0e-05
 
 exp_params:
-  dataset: StanfordRadiogenomicsPatchAugDataset
+  dataset: LIDCPatchAugDataset;LNDbPatch32AugDataset;StanfordRadiogenomicsPatchAugDataset
   LR: 0.00002
   batch_size: 36
   # weight_decay: 0.0
   max_lr: 0.0005
   final_div_factor: 10000
+  early_stopping: False
 
 trainer_params:
-  max_epochs: 500
-  check_val_every_n_epoch: 50
+  max_epochs: 10000
+  check_val_every_n_epoch: 100
 
 logging_params:
   save_dir: "logs/"
   name: "VAE3D32AUG"
-  visualize_interval: 4 # multiplications of "check_val_every_n_epoch"
-  manual_seed: 9001
+  visualize_interval: 500 # multiplications of "check_val_every_n_epoch"
+  manual_seed: 9002

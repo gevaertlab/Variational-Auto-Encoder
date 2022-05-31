@@ -38,22 +38,16 @@ class StanfordRadiogenomicsDataset(CTDataset):
         pass
 
     def _get_files(self):
-        img_dir = osp.join(self.root_dir, "Images")
+        img_dir = osp.join(self.root_dir, "Images")  # HACK: hard code
         seg_dir = osp.join(self.root_dir, "Segmentations")
         img_files = os.listdir(img_dir)
         seg_dirs = os.listdir(seg_dir)
-
-
-        # def rep_img(img_file_name):
-        #     return img_file_name.replace('img.nii.gz', 'msk.nii.gz')
-
-        # filelist = [(imgf, rep_img(imgf))
-        #             for imgf in img_files if rep_img(imgf) in seg_files]
 
         # NOTE: segmentation files changed
 
         filelist = []
         for imgf in img_files:
+            # HACK: try to get the segmentation subdir
             seg_subdir = imgf.split("_")[0]
             if seg_subdir in seg_dirs:
                 segfname = os.listdir(osp.join(seg_dir, seg_subdir))[0]
@@ -74,26 +68,29 @@ class StanfordRadiogenomicsDataset(CTDataset):
         meta_dict.update({"volume": volume})
         return {"pid": pid, "centroid_dict": centroid, "meta_info": meta_dict}
 
+    @staticmethod
     def _get_volume_from_seg(seg_np):
         seg_binary = (seg_np != 0).astype("uint8")
-        return np.sum(seg_binary)
+        # NOTE: not numpy stuff, or you can save into json
+        return int(np.sum(seg_binary))
 
     @staticmethod
     def _get_centroid_from_seg(seg_np):
         # 3D
+        # has to be int (not numpy stuff) or cannot saved as json
         seg_bool = (seg_np > 0).astype('int')
-        y = np.median(np.nonzero(
-            (np.sum(seg_bool, axis=(1, 2)) > 0).astype('int')))
-        x = np.median(np.nonzero(
-            (np.sum(seg_bool, axis=(0, 2)) > 0).astype('int')))
-        z = np.median(np.nonzero(
-            (np.sum(seg_bool, axis=(0, 1)) > 0).astype('int')))
+        y = int(np.median(np.nonzero(
+            (np.sum(seg_bool, axis=(1, 2)) > 0).astype('int'))))
+        x = int(np.median(np.nonzero(
+            (np.sum(seg_bool, axis=(0, 2)) > 0).astype('int'))))
+        z = int(np.median(np.nonzero(
+            (np.sum(seg_bool, axis=(0, 1)) > 0).astype('int'))))
 
         return {0: (x, y, z)}
 
     def load_seg_np(self, seg_path):
         seg_itk = self.load_seg_itk(str(seg_path))
-        return sitk.GetArrayFromImage(seg_itk).transpose()
+        return sitk.GetArrayFromImage(seg_itk).transpose((2, 1, 0))
 
     def load_seg_itk(self, seg_path):
         return self.load_funcs['seg'](seg_path)

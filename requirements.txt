@@ -1,0 +1,26 @@
+numpy
+pytorch-lightning
+matplotlib
+SimpleITK
+h5py
+itk
+pandas
+scikit-image
+scikit-learn
+scipy
+xgboost
+tabulate
+tqdm
+pylidc
+seaborn
+umap
+umap-learn
+datashader
+bokeh
+holoviews
+test-tube
+--extra-index-url https://download.pytorch.org/whl/cu113
+torch
+torchvision
+torchaudio
+

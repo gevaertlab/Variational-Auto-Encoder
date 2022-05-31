@@ -1,9 +1,12 @@
 ''' Defines a torch_lightning Module '''
 import os
-from typing import GenericMeta, Union
+import os.path as osp
+from typing import Union
+import inspect
 
 import pytorch_lightning as pl
 from torch import optim
+import torch
 from torch.utils.data import DataLoader
 
 from datasets import PATCH_DATASETS
@@ -28,7 +31,7 @@ class VAEXperiment(pl.LightningModule):
             self.model = vae_model
 
         self.params = params
-        self.curr_device = None
+        # self.curr_device = None
         self.hold_graph = False
         self.dataloader_params = {'num_workers': 12,
                                   'pin_memory': True}
@@ -37,8 +40,12 @@ class VAEXperiment(pl.LightningModule):
             self.dataset = get_concat_dataset(ds_name_list)
         else:
             self.dataset = PATCH_DATASETS[params['dataset']]
-        self.save_hyperparameters()  # for loading later
+        self.save_hyperparameters(ignore=["vae_model"])  # for loading later
         self.LOGGER = get_logger(cls_name=self.__class__.__name__)
+        # the weight of KL loss calculated, should be adjustable
+        self.train_dataloader()
+        self.M_N = self.params['batch_size'] / self.num_train_imgs
+        self.params['kl_actual_ratio'] = self.M_N * self.model.beta
         pass
 
     def forward(self, input: Tensor, **kwargs):  # -> Tensor
@@ -46,57 +53,86 @@ class VAEXperiment(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         real_img, labels = batch
-        self.curr_device = real_img.device
 
         results = self.forward(real_img, labels=labels)
-        # the weight of KL loss calculated, should be adjustable
-        M_N = self.params['batch_size'] / self.num_train_imgs
-        self.params['kl_actual_ratio'] = M_N * self.model.beta
-        train_loss = self.model.loss_function(*results,
-                                              M_N=M_N,
-                                              batch_idx=batch_idx)
+        recons, inputs, mu, log_var = results
 
-        for key, val in train_loss.items():
-            self.log(key, val.item(), logger=True)
+        return recons, inputs, mu, log_var
 
+    def training_step_end(self, output):
+        recons, inputs, mu, log_var = output
+        train_loss = self.model.loss_function(recons=recons, inputs=inputs,
+                                              mu=mu, log_var=log_var,
+                                              M_N=self.M_N,
+                                              #   batch_idx=batch_idx
+                                              )
         return train_loss
+
+    def training_epoch_end(self, outputs):
+        output_dict = {}
+        for key in outputs[0].keys():
+            output_dict[key] = torch.stack([o[key] for o in outputs]).mean()
+        for key, val in output_dict.items():
+            self.log(key, val.item(),
+                     on_step=False, on_epoch=True, prog_bar=False,
+                     logger=True, sync_dist=True)
+        self.log("step", float(self.global_step),)
+        pass
 
     def validation_step(self, batch, batch_idx, optimizer_idx=0):
         real_img, labels = batch
-        self.curr_device = real_img.device
 
         results = self.forward(real_img, labels=labels)  # modified
-        val_loss = self.model.loss_function(*results,
-                                            M_N=self.params['batch_size'] /
-                                            self.num_val_imgs,
-                                            optimizer_idx=optimizer_idx,
-                                            batch_idx=batch_idx)
-        # log val_loss and Learning rate
-        self.log('val_loss', val_loss['loss'].item(), logger=True)
-        self.log('lr', self.optimizers().param_groups[0]['lr'], logger=True)
+        recons, inputs, mu, log_var = results
+        return recons, inputs, mu, log_var
+
+    def validation_step_end(self, outputs):
+        recons, inputs, mu, log_var = outputs
+        val_loss = self.model.loss_function(recons=recons, inputs=inputs,
+                                            mu=mu, log_var=log_var,
+                                            M_N=self.M_N
+                                            )
         return val_loss
 
     def validation_epoch_end(self, outputs):
+        val_loss = [o['loss'] for o in outputs]
         # called at the end of the epoch,
         # returns will be logged into metrics file.
         # visualize according to interval
-        if self.current_epoch % int(self.logger.vis_interval) == int(self.logger.vis_interval) - 1:
+        # log val_loss and Learning rate
+        self.log('val_loss', torch.mean(torch.stack(val_loss)).item(),
+                 on_step=False, on_epoch=True, prog_bar=True,
+                 logger=True, sync_dist=True)
+        self.log('lr', self.optimizers().param_groups[0]['lr'],
+                 on_step=False, on_epoch=True, prog_bar=True,
+                 logger=True, sync_dist=True)
+        self.log("step", self.global_step,)
+        if self.current_epoch % int(self.logger.vis_interval) == \
+                int(self.logger.vis_interval) - 1:
             self.sample_images()
         pass
 
     def sample_images(self):
         # Get sample reconstruction image
         test_input, test_img_file_names = next(iter(self.sample_dataloader))
-        test_input = test_input.to(self.curr_device)
+        # at most 1 batch
+        if self.params["vis_batch_size"] < test_input.size(0):
+            test_input = test_input[:self.params["vis_batch_size"]]
+        device = next(self.model.parameters()).device
+        test_input = test_input.to(device)  # self.curr_device
         # modified we don't need label
         recons = self.model.generate(test_input)
 
-        # visualization using our codes
-        vis3d_tensor(recons.data, save_path=os.path.join(f"{self.logger.save_dir}{self.logger.name}/version_{self.logger.version}/media",
-                                                         f"recons_{self.logger.name}_{self.current_epoch}.png"))
-
-        vis3d_tensor(test_input.data, save_path=os.path.join(f"{self.logger.save_dir}{self.logger.name}/version_{self.logger.version}/media",
-                                                             f"real_img_{self.logger.name}_{self.current_epoch}.png"))
+        # visualizations of reconstructed images
+        media_dir = osp.join(self.logger.save_dir, self.logger.name,
+                             f"version_{self.logger.version}", "media")
+        # media_dir = f"{self.logger.save_dir}{self.logger.name}/version_{self.logger.version}/media"
+        if not os.path.exists(media_dir):
+            os.makedirs(media_dir)
+        vis3d_tensor(recons.data, save_path=os.path.join(
+            media_dir, f"recons_{self.logger.name}_{self.current_epoch}.png"))
+        vis3d_tensor(test_input.data, save_path=os.path.join(
+            media_dir, f"real_img_{self.logger.name}_{self.current_epoch}.png"))
         del test_input, recons  # , samples
 
         # draw loss curves
@@ -114,14 +150,18 @@ class VAEXperiment(pl.LightningModule):
         optims.append(optimizer)
 
         # NOTE: to get steps_per_epoch, need to configure train_loader first to get num_train_imgs
-        self.train_dataloader()
         # lr scheduler
         if self.params['max_lr'] is not None:
             # debug: // 2
             step_per_epoch = self.num_train_imgs // self.params['batch_size']
-            scheduler = optim.lr_scheduler.OneCycleLR(optims[0],
-                                                      epochs=self.params['max_epochs'],
-                                                      steps_per_epoch=step_per_epoch,
+            step_per_epoch = 1 if step_per_epoch == 0 else step_per_epoch
+            # epochs or steps
+            if self.params["max_epochs"] is not None:
+                p = {"epochs": self.params["max_epochs"],
+                     "steps_per_epoch": step_per_epoch}
+            elif self.params["max_steps"] is not None:
+                p = {"total_steps": self.params["max_steps"]}
+            scheduler = optim.lr_scheduler.OneCycleLR(optims[0], **p,
                                                       max_lr=self.params['max_lr'],
                                                       final_div_factor=self.params['final_div_factor'])
             lr_dict = {'scheduler': scheduler,
@@ -136,7 +176,7 @@ class VAEXperiment(pl.LightningModule):
 
     def train_dataloader(self, root_dir=None, shuffle=True, drop_last=True):  # -> DataLoader
         # if self.dataset is already a dataset then proceed
-        if isinstance(self.dataset, GenericMeta):
+        if inspect.isclass(self.dataset):  # isinstance(self.dataset, GenericMeta)
             train_ds = self.dataset(root_dir=root_dir,
                                     transform=sitk2tensor,
                                     split='train')
@@ -148,7 +188,8 @@ class VAEXperiment(pl.LightningModule):
                           **self.dataloader_params)
 
     def val_dataloader(self, root_dir=None, shuffle=False, drop_last=True):
-        if isinstance(self.dataset, GenericMeta):
+        # isinstance(self.dataset, GenericMeta):
+        if inspect.isclass(self.dataset):
             val_ds = self.dataset(root_dir=root_dir,
                                   transform=sitk2tensor,
                                   split='val')

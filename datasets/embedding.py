@@ -149,11 +149,11 @@ class EmbeddingPredictor(BaseEvaluator):
         dl_params: e.g. {'shuffle':False, 'drop_last':False}
         """
         if not embedding:
-            
+
             embedding = Embedding(log_name=self.log_name,
-                                version=self.version,
-                                tag=tag,
-                                split=split)
+                                  version=self.version,
+                                  tag=tag,
+                                  split=split)
         dataloader = self._parse_dataloader(dataloader, dl_params=dl_params)
         self.logger.info(f"Predicting embeddings for {len(dataloader)} images")
         for batch, file_names in tqdm(dataloader):

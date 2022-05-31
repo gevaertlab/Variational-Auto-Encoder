@@ -10,48 +10,47 @@ import yaml
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 
-from datasets import PATCH_DATASETS
 from experiment import VAEXperiment
 from models import VAE_MODELS
 from models.vae_base import VAEBackbone
+from train import process_config
 from utils.custom_loggers import VAELogger, get_logger  # logger
+
 LOGGER = get_logger()
 
 
-def parse_args():
-    parser = argparse.ArgumentParser(description='Train pretrained VAE models')
-    parser.add_argument('--pretrain_ckpt_load_dir', '-d',
-                        dest="pretrain_ckpt_load_dir",
-                        help='the log directory of pretrained model checkpoint',
-                        default="logs/VAE3D32AUG/version_57")
-    parser.add_argument('--dataset',
-                        dest="dataset",
-                        help=f'dataset name to train on, patch_datasets: {PATCH_DATASETS.keys()}',
-                        default="StanfordRadiogenomicsPatchAugDataset")  # LNDbPatch32Dataset
-    parser.add_argument('--learning_rate', '-lr',
-                        dest="learning_rate",
-                        help='float; learning rate to train, typically smaller, 0 means the same',
-                        default=0)  # LNDbPatch32Dataset
-    parser.add_argument('--max_epochs',
-                        dest="max_epochs",
-                        help='num of epoch to train',
-                        default=1000)
-    parser.add_argument('--note', "-n",
+def parse_config():
+    # arg parser
+    parser = argparse.ArgumentParser(description='Train VAE models')
+    parser.add_argument('--config',  '-c',
+                        dest="filename",
+                        metavar='FILE',
+                        help='config file name in /configs folder',
+                        default='exp_train_v2/lidc->stf_4e-6_step5000')
+    parser.add_argument('--note', "-N",
                         dest="note",
                         help='any note for training, will be saved in config file',
                         default="")
-    parser.add_argument('--name', "-N",
-                        dest="name",
-                        help="new logging name, default to be \'PRETRAINED_VAE\'; if \'same\' then use original config\'s name",
-                        default="PRETRAINED_VAE")
+    parser.add_argument("--info", "-I",
+                        dest="info",
+                        help="flag to output information but not train",
+                        action="store_true")
+    parser.add_argument("--template", "-T",
+                        dest="template",
+                        help="flag to output template",
+                        default="template_finetune")
     args = parser.parse_args()
-    return args
-
-
-def load_config(log_dir="logs/VAE3D32AUG/version_57"):
-    with open(osp.join(log_dir, "config.yaml"), 'r') as file:
-        config = yaml.safe_load(file)
+    config = process_config(args.filename, template=args.template)
+    config['note'] = args.note
+    if args.info:
+        config['info'] = True
     return config
+
+
+# def load_config(log_dir="logs/VAE3D32AUG/version_57"):
+#     with open(osp.join(log_dir, "config.yaml"), 'r') as file:
+#         config = yaml.safe_load(file)
+#     return config
 
 
 def load_ckpt(log_dir="logs/VAE3D32AUG/version_18"):
@@ -73,17 +72,19 @@ def freeze_model(model: VAEBackbone, freeze_params: dict):
 
 def main():
     # parse args and config dict
-    args = parse_args()
-    config = load_config(args.pretrain_ckpt_load_dir)
-    config['note'] = args.note
-    config["logging_params"]['pretrain_ckpt_load_dir'] = args.pretrain_ckpt_load_dir
-    if args.name != "same":
-        config['logging_params']['name'] = args.name
+    # args = parse_args()
+    # config = parse_config(args.config)
+    config = parse_config()
+
+    # config["logging_params"]['pretrain_ckpt_load_dir'] = args.pretrain_ckpt_load_dir
+    # if args.name != "same":
+    #     config['logging_params']['name'] = args.name
+
     # change training dataset
-    config['exp_params']['dataset'] = args.dataset
+    # config['exp_params']['dataset'] = args.dataset
     # change LR
-    if args.learning_rate:
-        config['exp_params']['LR'] = float(args.learning_rate)
+    # if args.learning_rate:
+    #     config['exp_params']['LR'] = float(args.learning_rate)
 
     # logger
     vae_logger = VAELogger(
@@ -114,34 +115,38 @@ def main():
                                    verbose=True,
                                    mode="min")
 
+    print("early_stopping:", config['exp_params']['early_stopping'])  # debug
+
+    callbacks = [model_checkpoint] if config['exp_params']['early_stopping'] == "False" else [
+        model_checkpoint, early_stopping]
+
     # trainer
     runner = Trainer(default_root_dir=f"{vae_logger.save_dir}",
                      logger=vae_logger,
                      # specify callback
-                     callbacks=[model_checkpoint, early_stopping],
-                     flush_logs_every_n_steps=10,
-                     num_sanity_val_steps=5,
-                     distributed_backend='ddp',
+                     callbacks=callbacks,
+                     num_sanity_val_steps=100,
+                     accelerator="gpu",
                      auto_select_gpus=True,
-                     gpus=1,  # debug
-                     check_val_every_n_epoch=config['trainer_params']['check_val_every_n_epoch'],
-                     max_epochs=int(args.max_epochs))
+                     devices=1,
+                     **config['trainer_params'])
 
     # experiment
     # import some of the training params
     config['exp_params']['max_epochs'] = config['trainer_params']['max_epochs']
+    config['exp_params']['max_steps'] = config['trainer_params']['max_steps']
     experiment = VAEXperiment(model, config['exp_params'])
 
     # loading weights
-    ckpt = load_ckpt(args.pretrain_ckpt_load_dir)
+    ckpt = load_ckpt(config['pretrain_ckpt_load_dir'])
     experiment.load_state_dict(ckpt['state_dict'])
     print(f"======= Training {config['model_params']['name']} =======")
 
     # freeze some layers
     # don't freeze the decoder!
-    freeze_params = {"encoder": [0, 1]}
-    experiment.model = freeze_model(
-        experiment.model, freeze_params=freeze_params)
+    # freeze_params = {"encoder": [0, 1]}
+    experiment.model = freeze_model(experiment.model,
+                                    freeze_params=config['freeze_params'])
 
     # train
     runner.fit(experiment)
