@@ -95,8 +95,8 @@ class VAELogger(CSVLogger):
         # get dict of epochs and losses
         df = log[[per, col_name]].dropna()
         value = list(df[col_name])
-        per = list(df[per])
-        return {f'{per}': per,
+        per_values = list(df[per])
+        return {f'{per}': per_values,
                 'value': value}
 
     def _load_log_file(self):
@@ -151,7 +151,7 @@ class VAELogger(CSVLogger):
             mloss_dict[pname] = self._get_vis_loss_dict(log, lname)
         for pname, lname in optional_keys.items():
             if lname in log.columns:
-                loss_dict[pname] = lname
+                loss_dict[pname] = self._get_vis_loss_dict(log, lname)
         loss_dict['train val losses'] = mloss_dict
         vis_loss_curve_diff_scale(log_path=self.abs_log_path,
                                   data=loss_dict,

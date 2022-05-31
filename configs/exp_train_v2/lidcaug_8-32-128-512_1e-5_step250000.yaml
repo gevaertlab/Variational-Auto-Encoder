@@ -8,17 +8,18 @@ model_params:
 exp_params:
   dataset: LIDCPatchAugDataset
   LR: 0.00002
-  batch_size: 36
+  batch_size: 198
+  vis_batch_size: 36
   # weight_decay: 0.0
   max_lr: 0.0005
   final_div_factor: 10000
 
 trainer_params:
-  max_steps: 250000 # = 500 epoch * 500 (standard image dataset len)
-  check_val_every_n_epoch: 50
+  max_steps: 250000 # = num_epochs * (n_images / batch_size)
+  check_val_every_n_epoch: 40
 
 logging_params:
   save_dir: "logs/TRAINING_EXPS_V2" # TODO: make a subdir for the models
-  name: "lidcaug_8-32-128-512_1e-5_step25000"
-  visualize_interval: 100 # multiplications of "check_val_every_n_epoch"
+  name: "lidcaug_8-32-128-512_1e-5_step250000"
+  visualize_interval: 80 # multiplications of "check_val_every_n_epoch"
   manual_seed: 9001

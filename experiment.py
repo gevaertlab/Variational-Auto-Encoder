@@ -1,5 +1,6 @@
 ''' Defines a torch_lightning Module '''
 import os
+import os.path as osp
 from typing import Union
 import inspect
 
@@ -114,19 +115,24 @@ class VAEXperiment(pl.LightningModule):
     def sample_images(self):
         # Get sample reconstruction image
         test_input, test_img_file_names = next(iter(self.sample_dataloader))
+        # at most 1 batch
+        if self.params["vis_batch_size"] < test_input.size(0):
+            test_input = test_input[:self.params["vis_batch_size"]]
         device = next(self.model.parameters()).device
         test_input = test_input.to(device)  # self.curr_device
         # modified we don't need label
         recons = self.model.generate(test_input)
 
-        # visualization using our codes
-        midia_dir = f"{self.logger.save_dir}{self.logger.name}/version_{self.logger.version}/media"
-        if not os.path.exists(midia_dir):
-            os.makedirs(midia_dir)
+        # visualizations of reconstructed images
+        media_dir = osp.join(self.logger.save_dir, self.logger.name,
+                             f"version_{self.logger.version}", "media")
+        # media_dir = f"{self.logger.save_dir}{self.logger.name}/version_{self.logger.version}/media"
+        if not os.path.exists(media_dir):
+            os.makedirs(media_dir)
         vis3d_tensor(recons.data, save_path=os.path.join(
-            midia_dir, f"recons_{self.logger.name}_{self.current_epoch}.png"))
+            media_dir, f"recons_{self.logger.name}_{self.current_epoch}.png"))
         vis3d_tensor(test_input.data, save_path=os.path.join(
-            midia_dir, f"real_img_{self.logger.name}_{self.current_epoch}.png"))
+            media_dir, f"real_img_{self.logger.name}_{self.current_epoch}.png"))
         del test_input, recons  # , samples
 
         # draw loss curves
@@ -151,7 +157,8 @@ class VAEXperiment(pl.LightningModule):
             step_per_epoch = 1 if step_per_epoch == 0 else step_per_epoch
             # epochs or steps
             if self.params["max_epochs"] is not None:
-                p = {"epochs": self.params["max_epochs"], "steps_per_epoch": step_per_epoch}
+                p = {"epochs": self.params["max_epochs"],
+                     "steps_per_epoch": step_per_epoch}
             elif self.params["max_steps"] is not None:
                 p = {"total_steps": self.params["max_steps"]}
             scheduler = optim.lr_scheduler.OneCycleLR(optims[0], **p,

@@ -195,12 +195,23 @@ def vis_loss_curve_diff_scale(log_path: str,
         axes[i].set_ylabel(key, size='x-small')
         axes[i].set_yscale('log')
         if isinstance(data[key], dict):
-            axes[i].plot(data[key][per],
-                         data[key]['value'],
-                         c=cmap(i),
-                         label=key,
-                         linewidth=1)
-        elif isinstance(data[key], list):
+            if per in data[key].keys():
+                axes[i].plot(data[key][per],
+                            data[key]['value'],
+                            c=cmap(i),
+                            label=key,
+                            linewidth=1)
+            else:
+                sub_dict = data[key]
+                for j, (sub_key, sub_value) in enumerate(sub_dict.items()):
+                    if per in sub_key:
+                        axes[i].plot(sub_value,
+                                    sub_dict['value'],
+                                    c=cmap(i),
+                                    linestyle=linestyles[j],
+                                    label=sub_key,
+                                    linewidth=1)
+        elif isinstance(data[key], list): # old
             sub_dict = data[key][0]
             for j, sub_key in enumerate(sub_dict.keys()):
                 axes[i].plot(sub_dict[sub_key][per],

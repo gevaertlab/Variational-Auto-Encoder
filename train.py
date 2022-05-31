@@ -72,9 +72,9 @@ def main(config_name=None):
                      #  strategy=DDPStrategy(),
                      accelerator="gpu",
                      #  strategy="ddp",  # DDPPlugin(find_unused_parameters=False)
-                     #  auto_select_gpus=True,
+                     auto_select_gpus=True,
                      devices=1,
-                     auto_scale_batch_size=True,
+                     #  auto_scale_batch_size="binsearch",
                      #  accelerator="ddp",
                      **config['trainer_params'])
 

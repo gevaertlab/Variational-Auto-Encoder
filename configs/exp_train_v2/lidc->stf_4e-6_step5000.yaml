@@ -1,0 +1,30 @@
+pretrain_ckpt_load_dir: /labs/gevaertlab/users/yyhhli/code/vae/logs/TRAINING_EXPS_V2/lidcaug_8-32-128-512_1e-5_step65000/version_3
+
+model_params:
+  name: "VAE3D"
+  in_channels: 1
+  latent_dim: 2048
+  hidden_dims: [8, 32, 128, 512]
+  beta: 1.0e-05
+
+exp_params:
+  dataset: StanfordRadiogenomicsPatchAugDataset
+  LR: 0.000004
+  batch_size: 198
+  vis_batch_size: 36
+  # weight_decay: 0.0
+  max_lr: 0.0005
+  final_div_factor: 10000
+
+trainer_params:
+  max_steps: 5000 # = num_epochs * (n_images / batch_size)
+  check_val_every_n_epoch: 40
+
+logging_params:
+  save_dir: "logs/TRAINING_EXPS_V2" # TODO: make a subdir for the models
+  name: "lidc->stf_4e-6_step5000"
+  visualize_interval: 80 # multiplications of "check_val_every_n_epoch"
+  manual_seed: 9001
+
+freeze_params:
+  encoder: [0, 1]

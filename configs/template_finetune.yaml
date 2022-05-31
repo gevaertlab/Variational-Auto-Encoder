@@ -1,5 +1,7 @@
 # template fo the configuration file.Some params are required. They must be specified
 # Others are optional. If blank, will use the default value in template file.
+pretrain_ckpt_load_dir: required
+  # log directory of the trained model, will load from here
 
 model_params: 
   # used to initialize model instance
@@ -73,3 +75,6 @@ logging_params:
 
 file_name: optional
   # filename of this config file
+
+freeze_params: optional
+  # e.g. encoder: [0, 1]

@@ -68,11 +68,12 @@ class PatchDataset(Dataset):
                 idx['val'], \
                 idx['test'] = train_val_test_split(len(patient_list),  # patient wise split
                                                    ratio=ratio,  # default to be 0.1
-                                                   random_state=9001)
+                                                   random_state=42)
             patients = self._list_index(patient_list, idx[split])
             self.patches = self._get_patch_names(patients, patches_list)
             self.logger.info(
                 f"patient split: train:{len(idx['train'])}, val:{len(idx['val'])}, test:{len(idx['test'])}")
+            self.logger.info(f"patch split: {split}, {len(self.patches)}")
         self._split = split
         return split
 
