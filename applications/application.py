@@ -79,6 +79,7 @@ class Application:
         self.exporter = Exporter(base_model_name=base_model_name,
                                  log_name=log_name,
                                  version=version,
+                                 task_names=[task_name],
                                  dataloaders=self.dataloaders)
         self.embeddings, self.data_names = self.exporter.get_embeddings()
         self.labels = self.exporter.get_labels(

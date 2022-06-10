@@ -65,7 +65,7 @@ def main(result_dir="./results/",):
     label_dict = {l.name: l for l in label_instance_list}
     # load the features
     feature_df = pd.read_csv(
-        "/labs/gevaertlab/users/yyhhli/code/vae/baselines/pyradiomics/pyradiomics_features.csv")
+        "/labs/gevaertlab/users/yyhhli/code/vae/baselines/pyradiomics/pyradiomics_features_default.csv")
     numeric_cols = feature_df.select_dtypes(include=["int", "float"]).columns
     Xdf = feature_df[numeric_cols]
     X = Xdf.values
@@ -79,7 +79,7 @@ def main(result_dir="./results/",):
         # print the results
         print(results)
         # save the results
-        results.to_csv(osp.join(result_dir, f"results_xgboost_{lname}.csv"), index=False)
+        results.to_csv(osp.join(result_dir, f"pyradiomics_default_results_xgboost_{lname}.csv"), index=False)
     pass
 
 

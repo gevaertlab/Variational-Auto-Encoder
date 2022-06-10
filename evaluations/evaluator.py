@@ -31,17 +31,33 @@ class BaseEvaluator:
                  log_name: str,
                  version: Union[int, str],
                  base_model_name: str = 'VAE3D',
-                 ):
+                 verbose: bool = False,):
+        """
+
+        Args:
+            log_name (str): name of the log, should be the rel path between logs/ and logs/<log_name>/config.yaml
+            version (Union[int, str]): version of the dataset, if not specified, will use the latest version
+            base_model_name (str, optional): backbone of the model used. Defaults to 'VAE3D'.
+            verbose (bool, optional): whether to print info. Defaults to False.
+        """
         self.log_name = log_name
         self.version = version
         self.base_model_name = base_model_name
+        log_dir = osp.join(self.LOG_DIR, log_name)
+
+        if version is None:
+            versions = sorted([v.split("version_")[-1] for v in os.listdir(log_dir)])
+            self.version = versions[-1]
         self.load_dir = osp.join(self.LOG_DIR,
                                  log_name,
                                  f'version_{version}')
+
         self._config = self._load_config(self.load_dir)
         self.module = self._init_model(self.load_dir,
                                        self.base_model_name)
         self.logger = get_logger(cls_name=self.__class__.__name__)
+        if verbose:
+            self.logger.info(f"Loading model log from: {self.load_dir}")
         pass
 
     def _load_config(self, load_dir):
@@ -95,10 +111,12 @@ class MetricEvaluator(BaseEvaluator):
                  metrics: List,
                  log_name: str,
                  version: Union[int, str],
-                 base_model_name: str = 'VAE3D',):
+                 base_model_name: str = 'VAE3D',
+                 verbose: bool = False,):
         super().__init__(log_name=log_name,
                          version=version,
-                         base_model_name=base_model_name)
+                         base_model_name=base_model_name,
+                         verbose=verbose)
 
         try:
             self.metrics = {name: METRICS_DICT[name] for name in metrics}
@@ -137,10 +155,12 @@ class ReconEvaluator(BaseEvaluator):
                  vis_dir: str,
                  log_name: str,
                  version: int,
-                 base_model_name: str = 'VAE3D',):
+                 base_model_name: str = 'VAE3D',
+                 verbose: bool = False,):
         super().__init__(log_name=log_name,
                          version=version,
-                         base_model_name=base_model_name)
+                         base_model_name=base_model_name,
+                         verbose=verbose)
         mkdir_safe(vis_dir)
         self.name_prefix = f"{self.log_name}.{self.version}."
         self.vis_dir = vis_dir

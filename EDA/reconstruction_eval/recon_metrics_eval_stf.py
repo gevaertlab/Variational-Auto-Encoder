@@ -10,8 +10,10 @@ def reconstruction_eval():
     
     parser = argparse.ArgumentParser(
         description='Reconstruction metrics calc for stf dataset')
-    parser.add_argument("--version", "-v",
-                        default=60)
+    parser.add_argument("--version", "-v", 
+    help="version of the dataset, if not specified, will use the latest version", 
+    type=str,
+                        default=None)
     parser.add_argument("--log_name", "-ln", default="VAE3D32AUG")
     args = parser.parse_args()
 
@@ -32,7 +34,8 @@ def reconstruction_eval():
     me = MetricEvaluator(metrics=['SSIM', 'MSE', 'PSNR'],
                          log_name=args.log_name,
                          version=args.version,
-                         base_model_name='VAE3D')
+                         base_model_name='VAE3D',
+                         verbose=True)
     metrics_dict = me.calc_metrics(dataloader=lndb_dl)
     result_dict = {}
     for k, v in metrics_dict.items():
