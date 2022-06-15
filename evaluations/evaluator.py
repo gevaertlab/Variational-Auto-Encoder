@@ -44,24 +44,32 @@ class BaseEvaluator:
         self.version = version
         self.base_model_name = base_model_name
         log_dir = osp.join(self.LOG_DIR, log_name)
+        assert osp.exists(log_dir), f"log_dir: {log_dir} does not exist"
+
+        self.logger = get_logger(cls_name=self.__class__.__name__)
+        if verbose:
+            self.logger.info(f"Loading model log from: {log_dir}")
 
         if version is None:
-            versions = sorted([v.split("version_")[-1] for v in os.listdir(log_dir)])
+            versions = sorted([v.split("version_")[-1]
+                              for v in os.listdir(log_dir)])
             self.version = versions[-1]
+            self.logger.info(f"selected version {self.version}")
         self.load_dir = osp.join(self.LOG_DIR,
                                  log_name,
-                                 f'version_{version}')
+                                 f'version_{self.version}')
 
         self._config = self._load_config(self.load_dir)
         self.module = self._init_model(self.load_dir,
                                        self.base_model_name)
-        self.logger = get_logger(cls_name=self.__class__.__name__)
-        if verbose:
-            self.logger.info(f"Loading model log from: {self.load_dir}")
+
         pass
 
     def _load_config(self, load_dir):
         config_path = os.path.join(load_dir, 'config.yaml')
+        # NOTE: could be .yaml or .yml
+        if not osp.exists(config_path):
+            config_path = os.path.join(load_dir, 'config.yml')
         with open(config_path, 'r') as file:
             config = yaml.safe_load(file)
         # NOTE: HACK!!! the config file will have the hidden_dims reversed,
@@ -161,9 +169,10 @@ class ReconEvaluator(BaseEvaluator):
                          version=version,
                          base_model_name=base_model_name,
                          verbose=verbose)
-        mkdir_safe(vis_dir)
-        self.name_prefix = f"{self.log_name}.{self.version}."
+        if vis_dir is not None:
+            mkdir_safe(vis_dir)
         self.vis_dir = vis_dir
+        self.name_prefix = f"{self.log_name}.{self.version}."
         pass
 
     def generate(self, latent_vector: torch.Tensor):
@@ -171,7 +180,6 @@ class ReconEvaluator(BaseEvaluator):
         synth_imgs = self.module.model.decode(latent_vector)
         return synth_imgs
 
-    
     def visualize(self,
                   dataloader='val_dataloader',
                   dl_params={'shuffle': False, 'drop_last': False},
@@ -201,6 +209,52 @@ class ReconEvaluator(BaseEvaluator):
 
     def __call__(self, *args: Any, **kwds: Any) -> Any:
         return self.visualize(*args, **kwds)
+
+
+class ReconSelectEvaluater(ReconEvaluator):
+    """ visualize reconstructed patches, can select by indices """
+
+    def __init__(self,
+                 vis_dir: str,
+                 log_name: str,
+                 version: int,
+                 base_model_name: str = 'VAE3D',
+                 verbose: bool = False,):
+        super().__init__(vis_dir=vis_dir,
+                         log_name=log_name,
+                         version=version,
+                         base_model_name=base_model_name,
+                         verbose=verbose)
+        pass
+
+    def visualize(self,
+                  dataset,
+                  indices=None,
+                  nrow=6):
+        """ create visualizations from a dataset """
+        if indices is None:
+            indices = list(range(6))
+        img_lst = []
+        for i, idx in enumerate(indices):
+            img, fname = dataset[idx]  # img: [C, L, W, H]
+            img_lst.append(img)
+        img_batch = torch.stack(img_lst, dim=0)
+        recon_batch = self.module.model.forward(img_batch)[0].detach()
+        if self.vis_dir is not None:
+            img_save_path = osp.join(self.vis_dir,
+                                        f"{self.name_prefix}_{str(i).zfill(2)}_image.jpeg")
+            recon_save_path = osp.join(self.vis_dir,
+                                        f"{self.name_prefix}_{str(i).zfill(2)}_recon.jpeg")
+        else:
+            img_save_path = None
+            recon_save_path = None
+        vis3d_tensor(img_tensor=img_batch,
+                     save_path=img_save_path,
+                     nrow=nrow)
+        vis3d_tensor(img_tensor=recon_batch,
+                     save_path=recon_save_path,
+                     nrow=nrow)
+        pass
 
 
 class SynthesisGaussian(ReconEvaluator):

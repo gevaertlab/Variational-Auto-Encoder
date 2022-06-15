@@ -1,6 +1,7 @@
 ''' This file provides util functions to visualize various type of data '''
 # import inspect
 # import math
+import math
 import os
 import os.path as osp
 from typing import Dict, Union
@@ -94,25 +95,43 @@ def vis3d_tensor(img_tensor,
                  axis=0,
                  slice_num=None,
                  nrow=6,
-                 save_path='/home/yyhhli/code/image data/temp_img.png'):
+                 save_path=None):
     '''
     Visualize image tensor of a batch 
     @param: img_tensor: [B, C, L, W, H]
-    @axis: select [L, W, H] to cut the slice, default to be 0 -- L
-    @slice_num: slice number to cut, default to be the middle layer
+    @axis: select [L, W, H] to select the slice, default to be 0 -- L
+    @slice_num: slice number to select, default to be the middle layer
     '''
 
     # using vutils
     if slice_num is None:
-        slice_num = int(img_tensor.size()[axis + 2]/2)
+        slice_num = int(img_tensor.shape[axis + 2]/2)
     indices = {0: None, 1: None, 2: None, 3: None, 4: None}
     indices[axis + 2] = slice_num
     img_tensor_slice = img_tensor[tuple(
         slice(indices[i]) if indices[i] is None else indices[i] for i in range(5))]
-    vutils.save_image(img_tensor_slice.data,
-                      save_path,
-                      normalize=True,
-                      nrow=nrow)
+    img_tensor_slice = img_tensor_slice.data.numpy()
+    # vutils.save_image(img_tensor_slice.data,
+    #                   save_path,
+    #                   normalize=True,
+    #                   nrow=nrow)
+
+    # using matplotlib
+    # img_tensor_slice.shape = (B, C=1, W, H)
+    ncols = int(math.ceil(img_tensor_slice.shape[0]/nrow))
+    fig, axes = plt.subplots(nrows=nrow,
+                             ncols=ncols,
+                             figsize=(3*ncols, 3*nrow))
+    for i, ax in enumerate(axes.flat):
+        ax.imshow(img_tensor_slice[i, 0, :, :], cmap='gray')
+        ax.axis('off')
+    fig.tight_layout()
+    if save_path is not None:
+        plt.savefig(save_path, dpi=400)
+        LOGGER.info('save image to {}'.format(save_path))
+    else:
+        plt.show()
+    plt.close()
     pass
 
 
@@ -197,21 +216,21 @@ def vis_loss_curve_diff_scale(log_path: str,
         if isinstance(data[key], dict):
             if per in data[key].keys():
                 axes[i].plot(data[key][per],
-                            data[key]['value'],
-                            c=cmap(i),
-                            label=key,
-                            linewidth=1)
+                             data[key]['value'],
+                             c=cmap(i),
+                             label=key,
+                             linewidth=1)
             else:
                 sub_dict = data[key]
                 for j, (sub_key, sub_value) in enumerate(sub_dict.items()):
                     if per in sub_key:
                         axes[i].plot(sub_value,
-                                    sub_dict['value'],
-                                    c=cmap(i),
-                                    linestyle=linestyles[j],
-                                    label=sub_key,
-                                    linewidth=1)
-        elif isinstance(data[key], list): # old
+                                     sub_dict['value'],
+                                     c=cmap(i),
+                                     linestyle=linestyles[j],
+                                     label=sub_key,
+                                     linewidth=1)
+        elif isinstance(data[key], list):  # old
             sub_dict = data[key][0]
             for j, sub_key in enumerate(sub_dict.keys()):
                 axes[i].plot(sub_dict[sub_key][per],
