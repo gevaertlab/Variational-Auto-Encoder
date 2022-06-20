@@ -3,6 +3,8 @@
 patch_extraction/registration/
 archive/
 exported/
+data/
+**/data
 
 # any log dir
 logs/

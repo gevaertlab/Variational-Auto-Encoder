@@ -122,7 +122,8 @@ if __name__ == "__main__":
         "/labs/gevaertlab/data/lung cancer/StanfordRadiogenomics/segmentations_nrrd")
     label_classes = [ # LabelStfAJCC, LabelStfEGFRMutation, LabelStfHisGrade, LabelStfKRASMutation, LabelStfNStage,
                      # LabelStfRGLymphInvasion, LabelStfRGPleuralInvasion,
-                     LabelStfTStage]
+                    #  LabelStfTStage, 
+                     LabelStfRGPleuralInvasion]
     for label_class in label_classes:
         label_instance = label_class()
         params["model"]["n_classes"] = set(label_instance.regroup_dict.values()).__len__()

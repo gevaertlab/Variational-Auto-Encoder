@@ -157,13 +157,16 @@ class LabelStfRGLymphInvasion(LabelStfReGroup):
                          **kwds)
 
 
-class LabelStfRGPleuralInvasion(LabelStanfordRadiogenomics):
+class LabelStfRGPleuralInvasion(LabelStfReGroup):
 
     def __init__(self,
                  name='Pleural invasion (elastic, visceral, or parietal)',
                  dataset_name="StfRadiogenomics",
+                 regroup_tuples=[(["No"], "No"),
+                                 (["Yes"], "Yes")],
                  **kwds) -> None:
-        super().__init__(name=name, dataset_name=dataset_name, **kwds)
+        super().__init__(name=name, dataset_name=dataset_name, 
+                         regroup_tuples=regroup_tuples, **kwds)
 
 
 class LabelStfEGFRMutation(LabelStfReGroup):

@@ -59,8 +59,10 @@ def predict_task(X, file_names, label, seed=9001, fold=5):
 def main(result_dir="./results/",):
 
     # list out all the STF labels imported
-    label_list = [LabelStfTStage, LabelStfNStage, LabelStfAJCC, LabelStfHisGrade,
-                  LabelStfRGLymphInvasion, LabelStfRGPleuralInvasion, LabelStfEGFRMutation, LabelStfKRASMutation]
+    label_list = [
+        # LabelStfTStage, LabelStfNStage, LabelStfAJCC, LabelStfHisGrade,
+                #   LabelStfRGPleuralInvasion, LabelStfEGFRMutation, LabelStfKRASMutation,
+                  LabelStfRGLymphInvasion]
     label_instance_list = [l() for l in label_list]
     label_dict = {l.name: l for l in label_instance_list}
     # load the features

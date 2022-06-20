@@ -31,7 +31,7 @@ def main():
 
     app = ApplicationCV(log_name="VAE3D32AUG",
                         version=70,
-                        task_name="StfAJCC",
+                        task_name="StfPleuralInvasion",
                         task_kwds={"task_type": "classification"},
                         base_model_name='VAE3D',
                         dataloaders={'train': stfrg_train_patch_dataloader,
