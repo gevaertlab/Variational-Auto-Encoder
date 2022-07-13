@@ -22,6 +22,10 @@ from datasets.label.label_stanfordradiogenomics import (
     LabelStfNStage, LabelStfReGroup, LabelStfRGLymphInvasion,
     LabelStfRGPleuralInvasion, LabelStfTStage)
 
+
+from private_variables import SLACK_WEBHOOK_URL, SLACK_CHANNEL
+from knockknock import slack_sender
+@slack_sender(webhook_url=SLACK_WEBHOOK_URL, channel=SLACK_CHANNEL)
 def predict_task(X, file_names, label, seed=9001, fold=5):
     # match labels
     y_raw = label.match_labels(file_names)
@@ -57,7 +61,7 @@ def predict_task(X, file_names, label, seed=9001, fold=5):
 
 
 def main(result_dir="./results/",):
-
+    fold=10
     # list out all the STF labels imported
     label_list = [
         # LabelStfTStage, LabelStfNStage, LabelStfAJCC, LabelStfHisGrade,
@@ -77,11 +81,11 @@ def main(result_dir="./results/",):
     file_names = [osp.basename(path).split("_")[0] for path in image_paths]
     for lname, label in label_dict.items():
         print(label.name)
-        results = predict_task(X, file_names, label, seed=9001, fold=5)
+        results = predict_task(X, file_names, label, seed=9001, fold=fold)
         # print the results
         print(results)
         # save the results
-        results.to_csv(osp.join(result_dir, f"pyradiomics_default_results_xgboost_{lname}.csv"), index=False)
+        results.to_csv(osp.join(result_dir, f"pyradiomics_default_results_xgboost_{lname}_fold{fold}.csv"), index=False)
     pass
 
 

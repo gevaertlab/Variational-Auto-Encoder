@@ -23,8 +23,8 @@ LABEL_DICT = {'volume': LabelVolume,
               "StfVolume": LabelStfRGVolume,
               "StfRGGender": LabelStfRGGender,  # only test
               "StfRGSmoking": LabelStfRGSmoking,  # only test
-              "StfLymphInvasion": LabelStfRGLymphInvasion,
-              "StfPleuralInvasion": LabelStfRGPleuralInvasion,
+              "StfRGLymphInvasion": LabelStfRGLymphInvasion,
+              "StfRGPleuralInvasion": LabelStfRGPleuralInvasion,
 
               "StfReGroup": LabelStfReGroup,  # meta label
               "StfTStage": LabelStfTStage,

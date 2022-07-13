@@ -529,59 +529,128 @@ def get_cmap(data: Union[np.ndarray, list], cmap: str):
     return {uvalue: cmap((i + 1/2) * step) for (i, uvalue) in enumerate(udata)}
 
 
-def vis_result_boxplot(data, save_path=None, box_pairs=None, 
-             xlabel=None, ylabel=None, ylim=True, figsize=(4, 5)):
+def make_snsdata(data: Union[np.ndarray, pd.DataFrame],
+                 label: Union[None, np.ndarray, list] = None,):
+    """
+    make sns dataframe from data and label
+    Args:
+        data: numpy array or pandas dataframe
+        label: numpy array or list, only used if data is numpy array
+    Returns:
+        sns dataframe
+    """
+    # data: col = [model1, model2, ...]; rows = [repeat1, repeat2, ...]
+    if isinstance(data, np.ndarray):
+        data = pd.DataFrame(data, label)
+    # construct sns data
+    vals, names, xs, bp_xs = [], [], [], []  # bp_xs: boxplot xs
+    for i, col in enumerate(data.columns):
+        vals += list(data[col])
+        names += [col] * len(data[col])
+        bp_xs += [i + 1] * len(data[col])
+        xs += list(np.random.normal(i, 0.04, data[col].values.shape[0]))  # + 1
+        # adds jitter to the data points - can be adjusted
+    sns_data = pd.DataFrame(
+        {'names': names, 'xs': xs, "bp_xs": bp_xs, 'vals': vals})
+    return sns_data
+
+
+def vis_result_boxplot(data, save_path=None, box_pairs=None,
+                       xlabel=None, ylabel=None, ylim=True, figsize=(4, 5), rotation=0):
     # data: pandas dataframe cols=model_names, rows=metrics
-    
+
     ##### Set style options here #####
     # boxprops = dict(linestyle='-', linewidth=1.5, color='#00145A')
     # flierprops = dict(marker='o', markersize=1,
     #                   linestyle='none')
     # whiskerprops = dict(color='#00145A')
     # capprops = dict(color='#00145A')
-    medianprops = dict(linewidth=1.5, linestyle='-', ) # color='#01FBEE')
-    meanprops = dict(marker='D') # , markeredgecolor='#fb0172')
-    
+    medianprops = dict(linewidth=1.5, linestyle='-', )  # color='#01FBEE')
+    meanprops = dict(marker='D')  # , markeredgecolor='#fb0172')
+
     # palette = ['#FF2709', '#09FF10', '#0030D7', '#FA70B5',
     #            "#21325E", "#EF6D6D", "#573391", "#00B8A9"]
 
     # construct sns data
-    vals, names, xs, bp_xs = [], [], [], [] # bp_xs: boxplot xs
-    for i, col in enumerate(data.columns):
-        vals += list(data[col])
-        names += [col] * len(data[col])
-        bp_xs += [i + 1] * len(data[col])
-        xs += list(np.random.normal(i, 0.04, data[col].values.shape[0])) #  + 1
-        # adds jitter to the data points - can be adjusted
-    sns_data = pd.DataFrame({'names': names, 'xs': xs, "bp_xs": bp_xs, 'vals': vals})
-    
+    sns_data = make_snsdata(data)
+
     fig, ax = plt.subplots(1, 1, figsize=figsize)
     sns.set_style("whitegrid")
     if ylim is True:
         ylim = (0, 1)
     if ylim:
         plt.ylim(ylim)
-    
+
     sns.boxplot(x='bp_xs', y='vals', hue='names',
                 dodge=False,
                 data=sns_data,
                 palette="Set2", ax=ax,
                 medianprops=medianprops, meanprops=meanprops,)
-                # boxprops=boxprops, whiskerprops=whiskerprops,
-                # capprops=capprops, flierprops=flierprops,
-                # medianprops=medianprops, showmeans=True, meanprops=meanprops)
+    # boxprops=boxprops, whiskerprops=whiskerprops,
+    # capprops=capprops, flierprops=flierprops,
+    # medianprops=medianprops, showmeans=True, meanprops=meanprops)
 
-    plt.xticks(np.arange(0, len(data.columns)), data.columns, rotation=0) #  + 1
+    plt.xticks(np.arange(0, len(data.columns)),
+               data.columns, rotation=rotation)  # + 1
 
     sns.scatterplot(x='xs', y='vals', hue='names',
-                data=sns_data, palette="Set2", ax=ax,
-                alpha=0.5)
+                    data=sns_data, palette="Set2", ax=ax,
+                    alpha=0.5)
     # t-test annotations
-    add_stat_annotation(ax, data=sns_data, x="names", y='vals', order=None,
-                    box_pairs=box_pairs, # test
-                    test='t-test_ind', text_format='star', loc='outside', verbose=2)
+    if box_pairs is not None:
+        add_stat_annotation(ax, data=sns_data, x="names", y='vals', order=None,
+                            box_pairs=box_pairs,  # test
+                            test='t-test_ind', text_format='star', loc='outside', verbose=2)
+
     # no need to show legend
     ax.legend().set_visible(False)
+    # add titles
+    if xlabel is not None:
+        plt.xlabel(xlabel, fontsize=10)
+    if ylabel is not None:
+        plt.ylabel(ylabel, fontsize=10)
+    fig = plt.gcf()
+    plt.tight_layout()
+    if save_path is not None:
+        fig.savefig(save_path, dpi=400)
+        print(f"saved to {save_path}")
+    plt.show()
+    return ax
+
+
+def vis_result_violin_plot(data, save_path=None, box_pairs=None,
+                           xlabel=None, ylabel=None, ylim=True, figsize=(4, 5)):
+    """
+    Args:
+        data: pandas dataframe cols=model_names, rows=metrics
+        save_path: path to save the figure
+        box_pairs: list of tuples, each tuple is (model1, model2)
+        xlabel: xlabel
+        ylabel: ylabel
+        ylim: ylim
+        figsize: figsize
+    Returns:
+        ax: matplotlib axis
+    """
+    # construct sns data
+    sns_data = make_snsdata(data)
+
+    fig, ax = plt.subplots(1, 1, figsize=figsize)
+    sns.set_style("whitegrid")
+    if ylim is True:
+        ylim = (0, 1)
+    if ylim:
+        plt.ylim(ylim)
+
+    plt.xticks(np.arange(0, len(data.columns)),
+               data.columns, rotation=0)  # + 1
+
+    sns.violinplot(x='xs', y='vals', hue='names',
+                   data=sns_data, palette="Set2", ax=ax,
+                   alpha=0.5)
+
+    # no need to show legend
+    # ax.legend().set_visible(False)
     # add titles
     if xlabel is not None:
         plt.xlabel(xlabel, fontsize=10)

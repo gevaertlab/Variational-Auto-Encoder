@@ -5,6 +5,7 @@ archive/
 exported/
 data/
 **/data
+private_variables.py
 
 # any log dir
 logs/

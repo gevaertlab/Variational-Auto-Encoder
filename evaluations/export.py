@@ -25,7 +25,7 @@ class Exporter(EmbeddingPredictor):  # inherited from BaseEvaluator
                  version: int,
                  dataloaders: dict = {
                      'train': 'train_dataloader', 'val': 'val_dataloader'},
-                 task_names: str = None, # list(TASK_DICT.keys()),
+                 task_names: str = None,  # list(TASK_DICT.keys()),
                  base_model_name: str = 'VAE3D'):
         super().__init__(log_name=log_name,
                          version=version,
@@ -56,12 +56,14 @@ class Exporter(EmbeddingPredictor):  # inherited from BaseEvaluator
         return dict of labels not label instance
         """
         label_instance = LABEL_DICT[label_name](**label_kwds)
-        label = {}
 
         # get labels
         self.timer()
-        label['train'] = label_instance.get_labels(data_names['train'])
-        label['val'] = label_instance.get_labels(data_names['val'])
+        if isinstance(data_names, dict):
+            label = {k: label_instance.get_labels(
+                data_names[k]) for k in data_names.keys()}
+        elif isinstance(data_names, list):
+            label = label_instance.get_labels(data_names)
         self.timer('match labels')
         return label
 

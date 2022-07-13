@@ -58,7 +58,7 @@ class LabelStfRGVolume(LabelStanfordRadiogenomics):
 
 # new feature, classes are re-grouped.
 class LabelStfReGroup(LabelStanfordRadiogenomics):
-    """ because handling NA values, so label should all be string !!! """
+    """ because of handling NA values, so label should all be string !!! """
 
     def __init__(self, name, regroup_tuples: List, na_value='NA', **kwds) -> None:
         """AI is creating summary for __init__

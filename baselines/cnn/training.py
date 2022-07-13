@@ -18,6 +18,10 @@ from datasets.label.label_stanfordradiogenomics import (
     LabelStfRGPleuralInvasion, LabelStfTStage)
 
 
+from private_variables import SLACK_WEBHOOK_URL, SLACK_CHANNEL
+from knockknock import slack_sender
+
+
 class CNNModule(pl.LightningModule):
 
     def __init__(self, model, params: dict):
@@ -66,7 +70,8 @@ class CNNModule(pl.LightningModule):
         optimizer = optim.Adam(self.model.parameters(), lr=self.params["lr"])
         return [optimizer]
 
-def main(params):
+
+def train_eval_model(params):
     model = CNNModule(params["model"], params)
     trainer = pl.Trainer(**params["trainer_params"])
     trainer.fit(model)
@@ -77,12 +82,11 @@ def main(params):
         y_hat = model(x)
         # evaluations of the model
         # convert to numpy array
-        y_hat = y_hat.detach().cpu().numpy()[: ,1] > 0.5
-        y = y.detach().cpu().numpy()[: ,1]
+        y_hat = y_hat.detach().cpu().numpy()[:, 1] > 0.5
+        y = y.detach().cpu().numpy()[:, 1]
         # concat y and y hat
         y_val = np.concatenate((y_val, y))
         y_hat_val = np.concatenate((y_hat_val, y_hat))
-
 
     # NOTE: currently only handles binary classification
     for metric_name, metric_func in CLASSIFICATION_METRIC_DICT.items():
@@ -90,6 +94,7 @@ def main(params):
         print(f"{metric_name}: {metric}")
         results[metric_name] = metric
     return results
+
 
 def get_params():
     """ set default params and also allow to override them with args """
@@ -101,7 +106,7 @@ def get_params():
         "trainer_params": {
             "accelerator": "gpu",
             "gpus": 1,
-            "max_epochs": 50, # 500
+            "max_epochs": 50,  # 500
             "auto_select_gpus": True,
             "log_every_n_steps": 10, },
         "data_params": {},
@@ -114,34 +119,43 @@ def get_params():
     return params
 
 
-if __name__ == "__main__":
+@slack_sender(webhook_url=SLACK_WEBHOOK_URL, channel=SLACK_CHANNEL)
+def main():
     params = get_params()
     print(params)
+    fold = 10
     # get the label instance
     seg_file_names = os.listdir(
         "/labs/gevaertlab/data/lung cancer/StanfordRadiogenomics/segmentations_nrrd")
-    label_classes = [ # LabelStfAJCC, LabelStfEGFRMutation, LabelStfHisGrade, LabelStfKRASMutation, LabelStfNStage,
-                     # LabelStfRGLymphInvasion, LabelStfRGPleuralInvasion,
-                    #  LabelStfTStage, 
-                     LabelStfRGPleuralInvasion]
+    label_classes = [  # LabelStfAJCC, LabelStfEGFRMutation, LabelStfHisGrade, LabelStfKRASMutation, LabelStfNStage,
+        # LabelStfRGLymphInvasion, LabelStfRGPleuralInvasion,
+        #  LabelStfTStage,
+        LabelStfRGPleuralInvasion]
     for label_class in label_classes:
         label_instance = label_class()
-        params["model"]["n_classes"] = set(label_instance.regroup_dict.values()).__len__()
+        params["model"]["n_classes"] = set(
+            label_instance.regroup_dict.values()).__len__()
         params["data_params"]["label_instance"] = label_instance
         params["data_params"]["dataset_name"] = label_instance.name
         results = {n: [] for n in CLASSIFICATION_METRIC_DICT.keys()}
-        for (idx_train, idx_test), (name_train, name_test) in generate_split(label_instance, file_names=seg_file_names):
+        for (idx_train, idx_test), (name_train, name_test) in generate_split(label_instance,
+                                                                             file_names=seg_file_names,
+                                                                             fold=fold):
             params["data_params"]["train_idx"] = idx_train
             params["data_params"]["val_idx"] = idx_test
             params["data_params"]["train_name"] = name_train
             params["data_params"]["val_name"] = name_test
-            result = main(params)
+            result = train_eval_model(params)
             for k, v in result.items():
                 results[k].append(v)
         print("label: ", label_instance.name)
         print("results: ", results)
         # save results
-        with open(f"/labs/gevaertlab/users/yyhhli/code/vae/baselines/cnn/results/{label_instance.name}.json", "w") as f:
+        with open(f"/labs/gevaertlab/users/yyhhli/code/vae/baselines/cnn/results/{label_instance.name}_fold{fold}.json", "w") as f:
             json.dump(results, f)
 
     pass
+
+
+if __name__ == "__main__":
+    main()
