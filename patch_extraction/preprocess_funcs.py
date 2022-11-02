@@ -120,8 +120,7 @@ def preprocess(img,
                                                              spacing,
                                                              center_point)
     new_center_point = tuple(new_center_point)  # NOTE: convert to tuple
-    uniformly_spaced_scaled_img = winsorize_scale(
-        uniformly_spaced_img)
+    uniformly_spaced_scaled_img = winsorize_scale(uniformly_spaced_img)
     npimg = sitk.GetArrayFromImage(uniformly_spaced_scaled_img) # (z, x, y)
     npimg = transpose(npimg, (1, 2, 0)) # (x, y, z)
     npimg = transpose(npimg, transpose_axis)

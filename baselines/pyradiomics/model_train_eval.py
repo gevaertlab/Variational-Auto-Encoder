@@ -64,9 +64,10 @@ def main(result_dir="./results/",):
     fold=10
     # list out all the STF labels imported
     label_list = [
-        # LabelStfTStage, LabelStfNStage, LabelStfAJCC, LabelStfHisGrade,
-                #   LabelStfRGPleuralInvasion, LabelStfEGFRMutation, LabelStfKRASMutation,
-                  LabelStfRGLymphInvasion]
+        LabelStfTStage, LabelStfNStage, LabelStfAJCC, LabelStfHisGrade,
+                  LabelStfRGPleuralInvasion, LabelStfEGFRMutation, LabelStfKRASMutation,
+                #   LabelStfRGLymphInvasion,
+                  ]
     label_instance_list = [l() for l in label_list]
     label_dict = {l.name: l for l in label_instance_list}
     # load the features

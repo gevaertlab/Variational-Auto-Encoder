@@ -15,20 +15,20 @@ def param_parser():
     parser.add_argument('--dataset',  '-r',
                         dest="dataset",
                         help='name of the dataset, defined in CT_DATASETS',
-                        default='LDNbDataset')
+                        default='StanfordRadiogenomicsDataset')
     parser.add_argument('--aug_param',  '-a',
                         dest="aug_param",
                         help='augmentation parameters (filename) for '
                         'aumgentation, should be in aug_param folder',
-                        default='version1')  # in `aug_params`` rotate, shift or version1
+                        default='')  # in `aug_params`` rotate, shift or version1
     parser.add_argument('--save_dir',  '-S',
                         dest="save_dir",
                         help="save directory of converted patches",
-                        default='LNDb/LNDb-patch32-aug')
+                        default='temp/')  # NOTE: e.g. "LNDb/LNDb-path32-aug"
     parser.add_argument('--vis_dir',  '-V',
                         dest="vis_dir",
                         help="visualization directory of converted patches",
-                        default='')  # NOTE: debug e.g. StanfordRadiogenomics/patch-visualization-32-aug
+                        default='temp/')  # NTE: e.g. StanfordRadiogenomics/patch-visualization-32-aug
     parser.add_argument('--size',  '-s',
                         dest="size",
                         help="size of the patches",

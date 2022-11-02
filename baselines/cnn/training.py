@@ -126,11 +126,13 @@ def main():
     fold = 10
     # get the label instance
     seg_file_names = os.listdir(
-        "/labs/gevaertlab/data/lung cancer/StanfordRadiogenomics/segmentations_nrrd")
-    label_classes = [  # LabelStfAJCC, LabelStfEGFRMutation, LabelStfHisGrade, LabelStfKRASMutation, LabelStfNStage,
-        # LabelStfRGLymphInvasion, LabelStfRGPleuralInvasion,
-        #  LabelStfTStage,
-        LabelStfRGPleuralInvasion]
+        "/labs/gevaertlab/data/lungcancer/StanfordRadiogenomics/segmentations_nrrd")
+    label_classes = [
+        # LabelStfAJCC, LabelStfEGFRMutation, LabelStfHisGrade,
+        # LabelStfKRASMutation, LabelStfNStage,
+        LabelStfRGLymphInvasion, LabelStfRGPleuralInvasion, LabelStfTStage,
+        # LabelStfRGPleuralInvasion,
+    ]
     for label_class in label_classes:
         label_instance = label_class()
         params["model"]["n_classes"] = set(

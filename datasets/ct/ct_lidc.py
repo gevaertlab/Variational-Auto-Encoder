@@ -22,7 +22,7 @@ class LIDCDataset(CTDataset):
                  root_dir: str = None,
                  name='LIDC',
                  params={
-                     "save_path": "/labs/gevaertlab/data/lung cancer/TCIA_LIDC/lidc_info_dict.json"},
+                     "save_path": "/labs/gevaertlab/data/lungcancer/TCIA_LIDC/lidc_info_dict.json"},
                  reset_info=False):
         if root_dir is None:
             root_dir = os.path.join(DS_ROOT_DIR, "TCIA_LIDC")

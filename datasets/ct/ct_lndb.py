@@ -26,7 +26,7 @@ class LNDbDataset(CTDataset):
                  name: str = 'LDNb',
                  split='train',
                  params={
-                     "save_path": "/labs/gevaertlab/data/lung cancer/LNDb/lndb_info_dict.json"},
+                     "save_path": "/labs/gevaertlab/data/lungcancer/LNDb/lndb_info_dict.json"},
                  reset_info=False):
 
         if root_dir is None:

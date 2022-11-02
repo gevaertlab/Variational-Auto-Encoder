@@ -125,9 +125,6 @@ class PatchExtract:
         # if not multi: # extract one by one
         #     dataloader = DataLoader()
 
-        # TODO: re-implement the whole class to use the dataset -> dataloader
-        # transform format to load extract
-
         # called load_extract for the whole dataset
         if not multi:
             for i in tqdm(range(len(self.dataset))):
@@ -148,13 +145,23 @@ class PatchExtract:
         raise NotImplementedError
 
     def vis_ds(self, dataset_dir, vis_dir=None, rd=20):
+        """
+
+        Args:
+            dataset_dir ([type]): [description]
+            vis_dir ([type], optional): [description]. Defaults to None.
+            rd (int, optional): [the number of random sample visualize]. Defaults to 20.
+        """
         # called when debug flag present
         if vis_dir is None:  # default path
             vis_dir = str(Path(dataset_dir).parent.absolute())
         mkdir_safe(vis_dir)
         files = [f for f in os.listdir(dataset_dir) if f.endswith('.nrrd')]
         if rd:  # random sampling
-            files = random.sample(files, rd)
+            if len(files) > rd:
+                files = random.sample(files, rd)
+            else:
+                self.logger.warning(f"dataset size {len(files)} < {rd}")
         for file in files:
             self.vis_img(img_path=os.path.join(dataset_dir, file),
                          vis_path=os.path.join(vis_dir,

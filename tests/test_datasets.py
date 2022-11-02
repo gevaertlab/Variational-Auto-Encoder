@@ -30,10 +30,10 @@ def test_patch_lndb():
     pe = PatchExtract(patch_size=(32, 32, 32), dataset=lndb,
                       augmentation_params=None, debug=True)
     pe.load_extract_ds(
-        save_dir="/labs/gevaertlab/data/lung cancer/LNDb/LNDb-patch32",
+        save_dir="/labs/gevaertlab/data/lungcancer/LNDb/LNDb-patch32",
         overwrite=True)
-    pe.vis_ds(dataset_dir="/labs/gevaertlab/data/lung cancer/LNDb/LNDb-patch32",
-              vis_dir="/labs/gevaertlab/data/lung cancer/LNDb/vis_LNDb-patch32")
+    pe.vis_ds(dataset_dir="/labs/gevaertlab/data/lungcancerLNDb/LNDb-patch32",
+              vis_dir="/labs/gevaertlab/data/lungcancer/LNDb/vis_LNDb-patch32")
     pass
 
 
@@ -44,10 +44,10 @@ def test_patch_extraction_lidc():
     pe = PatchExtract(patch_size=(64, 64, 64), dataset=lidc,
                       augmentation_params=None, debug=True)
     pe.load_extract_ds(
-        save_dir="/labs/gevaertlab/data/lung cancer/TCIA_LIDC/LIDC-test-64",
+        save_dir="/labs/gevaertlab/data/lungcancerIA_LIDC/LIDC-test-64",
         overwrite=True)
-    # pe.vis_ds(dataset_dir="/labs/gevaertlab/data/lung cancer/TCIA_LIDC/LNDb-patch32",
-    #           vis_dir="/labs/gevaertlab/data/lung cancer/LNDb/vis_LNDb-patch32")
+    # pe.vis_ds(dataset_dir="/labs/gevaertlab/data/lungcancer/TCIA_LIDC/LNDb-patch32",
+    #           vis_dir="/labs/gevaertlab/data/lungcancer/LNDb/vis_LNDb-patch32")
     pass
 
 
@@ -133,8 +133,6 @@ def test_stanford_label_dataset():
     data = next(iter(dl))
     print(data)
     pass
-
-
 
 
 if __name__ == '__main__':

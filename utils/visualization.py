@@ -1,6 +1,5 @@
-''' This file provides util functions to visualize various type of data '''
-# import inspect
-# import math
+""" This file provides util functions to visualize various type of data  """
+
 import math
 import os
 import os.path as osp
@@ -14,9 +13,9 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import SimpleITK as sitk
-import torchvision.utils as vutils
+# import torchvision.utils as vutils
 from umap.umap_ import UMAP
-import umap.plot
+# import umap.plot
 from matplotlib.patches import Patch
 # from matplotlib.ticker import MultipleLocator, ScalarFormatter
 from mpl_toolkits import axisartist
@@ -203,12 +202,11 @@ def vis_loss_curve_diff_scale(log_path: str,
 
     # adjust positions
     for i in range(len(keys)):
-        if i >= 1:
-            axes[i].axis['right'] = axes[i].new_fixed_axis(loc="right",
-                                                           offset=(offset * (i-1), 0))
+        if i != 0:
+            axes[i].axis['right'] = axes[i].new_fixed_axis(loc="right", offset=(offset * (i-1), 0))
             axes[i].axis['right'].toggle(all=True)
 
-    # draw plots
+    # draw loss curve
     for i, key in enumerate(keys):
         # plots
         axes[i].set_xlabel(per)
@@ -461,11 +459,19 @@ def vis_umap(data: Union[np.ndarray, pd.DataFrame],
              save_path: str,
              label_name='',
              label_numeric=False):
-    mapper = UMAP().fit(data)
-    umap.plot.points(mapper, labels=np.array(label))
-    plt.savefig(save_path, dpi=200)
+    sns.set_style('whitegrid')
+    u = UMAP().fit_transform(data)
+    fig, ax = plt.subplots()
+    scatter = ax.scatter(u[:, 0], u[:, 1], alpha=0.5, c=label, s=label)
+    plt.gca().set_aspect('equal', 'datalim')
+    handles, labels = scatter.legend_elements(prop="sizes", alpha=0.6)
+    ax.legend(handles, labels, loc="upper right", title="Sizes/1000")
+    if save_path:
+        plt.savefig(save_path, dpi=400)
+        print(f"visualized at {save_path}")
+    if show:
+        plt.show()
     plt.close()
-    LOGGER.info(f"visualized at {save_path}")
     pass
 
 

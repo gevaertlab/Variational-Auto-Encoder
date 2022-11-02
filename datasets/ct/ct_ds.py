@@ -7,19 +7,18 @@ The CT dataset that can has several functionalities:
 """
 
 
-import functools
 import json
 import os
 import os.path as osp
 from abc import ABCMeta, abstractmethod
 from typing import Any
 
+import numpy as np
+import SimpleITK as sitk
 from datasets.utils import LRUCache, train_val_test_split
 from numpy.lib.arraysetops import isin
 from torch.utils.data.dataset import Dataset
 from utils.funcs import print_dict
-import SimpleITK as sitk
-
 from utils.python_logger import get_logger
 
 
@@ -303,14 +302,26 @@ class CTDataset(Dataset):
                 ct_path = ct_path['img_path']
              # TODO: test other datasets
         img = self.load_funcs['ct'](ct_path)
-        return sitk.GetArrayFromImage(img)
+        if isinstance(img, sitk.Image):
+            return sitk.GetArrayFromImage(img).transpose((2, 1, 0))
+        elif isinstance(img, np.ndarray):
+            return img
+        else:
+            raise NotImplementedError(f"img type {type(img)} not implemented")
 
     def load_seg_np(self, idx, query_type='index'):
         if osp.isdir(idx) or osp.isfile(idx):
             seg_path = idx
         else:
-            seg_path = self.get_info(idx, query_type=query_type)[1]['path']['seg_path']
-        return self.load_funcs['seg'](seg_path)
+            seg_path = self.get_info(idx, query_type=query_type)[
+                1]['path']['seg_path']
+        seg = self.load_funcs['seg'](seg_path)
+        if isinstance(seg, sitk.Image):
+            return sitk.GetArrayFromImage(seg).transpose((2, 1, 0))
+        elif isinstance(seg, np.ndarray):
+            return seg
+        else:
+            raise NotImplementedError(f"seg type {type(seg)} not implemented")
 
     def __getitem__(self, idx, query_type='index'):
         return self.load_ct_np(idx), self.get_info(idx)

@@ -6,6 +6,19 @@ exported/
 data/
 **/data
 private_variables.py
+visualizations/
+
+## logs
+logging_files/
+
+# images
+*.nrrd 
+*.jpg
+*.jpeg
+*.png
+*.tiff
+*.h5
+
 
 # any log dir
 logs/

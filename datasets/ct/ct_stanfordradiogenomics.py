@@ -19,11 +19,11 @@ class StanfordRadiogenomicsDataset(CTDataset):
                  name: str = 'StanfordRadiogenomics',
                  split='train',
                  params={
-                     "save_path": "/labs/gevaertlab/data/lung cancer/StanfordRadiogenomics/stf_info_dict.json"},
+                     "save_path": "/labs/gevaertlab/data/lungcancer/StanfordRadiogenomics/stf_info_dict.json"},
                  reset_info=False):
 
         if root_dir is None:
-            root_dir = "/labs/gevaertlab/data/NSCLC_Radiogenomics/Resampled"  # HACK: hard code this
+            root_dir = "/labs/gevaertlab/data/NSCLC_Radiogenomics/"  # HACK: hard code this
         self.logger = get_logger(self.__class__.__name__)
         self.impl_set = ['all', 'train', 'test']
         super().__init__(root_dir,
@@ -38,23 +38,32 @@ class StanfordRadiogenomicsDataset(CTDataset):
         pass
 
     def _get_files(self):
-        img_dir = osp.join(self.root_dir, "Images")  # HACK: hard code
-        seg_dir = osp.join(self.root_dir, "Segmentations")
-        img_files = os.listdir(img_dir)
-        seg_dirs = os.listdir(seg_dir)
-
-        # NOTE: segmentation files changed
-
+        folders = os.listdir(self.root_dir)
         filelist = []
-        for imgf in img_files:
-            # HACK: try to get the segmentation subdir
-            seg_subdir = imgf.split("_")[0]
-            if seg_subdir in seg_dirs:
-                segfname = os.listdir(osp.join(seg_dir, seg_subdir))[0]
-                segf = osp.join(seg_subdir, segfname)
-                filelist.append((imgf, segf))
+        for folder in folders:
+            files = os.listdir(osp.join(self.root_dir, folder))
 
-        return filelist, (img_dir, seg_dir)
+            img = [f for f in files if f.endswith("_img.nii.gz")][0]
+            seg = [f for f in files if f.endswith("_msk.nii.gz")][0]
+            filelist.append((osp.join(folder, img), osp.join(folder, seg)))
+
+        # img_dir = osp.join(self.root_dir, "Images")  # HACK: hard code
+        # seg_dir = osp.join(self.root_dir, "Segmentations")
+        # img_files = os.listdir(img_dir)
+        # seg_dirs = os.listdir(seg_dir)
+
+        # # NOTE: segmentation files changed
+
+        # filelist = []
+        # for imgf in img_files:
+        #     # HACK: try to get the segmentation subdir
+        #     seg_subdir = imgf.split("_")[0]
+        #     if seg_subdir in seg_dirs:
+        #         segfname = os.listdir(osp.join(seg_dir, seg_subdir))[0]
+        #         segf = osp.join(seg_subdir, segfname)
+        #         filelist.append((imgf, segf))
+
+        return filelist
 
     def _get_meta_csv(self):
         return pd.read_csv(osp.join(self.root_dir, "NSCLCR01Radiogenomic_DATA_LABELS.csv"))
@@ -88,21 +97,21 @@ class StanfordRadiogenomicsDataset(CTDataset):
 
         return {0: (x, y, z)}
 
-    def load_seg_np(self, seg_path):
-        seg_itk = self.load_seg_itk(str(seg_path))
-        return sitk.GetArrayFromImage(seg_itk).transpose((2, 1, 0))
+    # def load_seg_np(self, seg_path):
+    #     seg_itk = self.load_seg_itk(str(seg_path))
+    #     return sitk.GetArrayFromImage(seg_itk).transpose((2, 1, 0))
 
-    def load_seg_itk(self, seg_path):
-        return self.load_funcs['seg'](seg_path)
+    # def load_seg_itk(self, seg_path):
+    #     return self.load_funcs['seg'](seg_path)
 
     def _set_ds_info(self):
-        filelist, (img_dir, seg_dir) = self._get_files()
+        filelist = self._get_files()
         meta_csv = self._get_meta_csv()
         for img, seg in tqdm(filelist):
             pid = img.replace("_img.nii.gz", "")
             meta_dict = self._extract_meta(
-                pid, osp.join(seg_dir, seg), meta_csv)
-            meta_dict.update({"path": {'img_path': osp.join(img_dir, img),
-                                       "seg_path": osp.join(seg_dir, seg)}})
+                pid, osp.join(self.root_dir, seg), meta_csv)
+            meta_dict.update({"path": {'img_path': osp.join(self.root_dir, img),
+                                       "seg_path": osp.join(self.root_dir, seg)}})
             self.update_info(pid, meta_dict)
         pass
